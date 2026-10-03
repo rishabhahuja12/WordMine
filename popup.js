@@ -1119,13 +1119,27 @@ function showAiOutput(text, isError = false) {
     aiOutputBox.dataset.rawText = text;
     
     let html = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
-    html = html.replace(/`(.*?)`/g, '<code style="background:#e5e7eb; padding:2px 4px; border-radius:4px; font-family:monospace; color:#0f172a;">$1</code>');
-    html = html.replace(/^-\s+(.*)/gm, '• $1');
+    
+    // LaTeX math arrows & common symbols
+    html = html.replace(/\$\\rightarrow\$/g, "→");
+    html = html.replace(/\$\\Rightarrow\$/g, "⇒");
+    html = html.replace(/\$\\leftarrow\$/g, "←");
+    html = html.replace(/\$\\Leftarrow\$/g, "⇐");
+
+    // Headers
     html = html.replace(/^### (.*$)/gm, '<strong style="font-size:1.05em; color:var(--brand-main); display:block; margin-top:8px;">$1</strong>');
     html = html.replace(/^## (.*$)/gm, '<strong style="font-size:1.15em; color:var(--brand-main); display:block; margin-top:10px;">$1</strong>');
     html = html.replace(/^# (.*$)/gm, '<strong style="font-size:1.25em; color:var(--brand-main); display:block; margin-top:12px;">$1</strong>');
+    
+    // Bullets (Dash, Asterisk, or dot) -> must process before bold/italic so asterisks aren't consumed
+    html = html.replace(/^[\*\-•]\s+(.*$)/gm, '<span style="display:block; margin-left:12px;">• $1</span>');
+
+    // Bold & Italic (restrict to non-newlines to prevent bleeding across paragraphs)
+    html = html.replace(/\*\*([^\*\n]+)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*([^\*\n]+)\*/g, '<em>$1</em>');
+    
+    // Inline code
+    html = html.replace(/`([^`\n]+)`/g, '<code style="background:#e5e7eb; padding:2px 4px; border-radius:4px; font-family:monospace; color:#0f172a;">$1</code>');
     
     aiOutputBox.innerHTML = html;
 
