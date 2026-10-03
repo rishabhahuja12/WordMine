@@ -59,6 +59,7 @@ const selectedCountBadge = document.getElementById("selectedCountBadge");
 
 // Automator View DOM
 const btnAutoMarkCurrent = document.getElementById("btnAutoMarkCurrent");
+const btnHandleDiscussion = document.getElementById("btnHandleDiscussion");
 const btnAssistPeerReview = document.getElementById("btnAssistPeerReview");
 const btnAutoLoopCourse = document.getElementById("btnAutoLoopCourse");
 const automatorStatusNote = document.getElementById("automatorStatusNote");
@@ -68,6 +69,7 @@ const geminiApiKeyInput = document.getElementById("geminiApiKey");
 const btnSaveKey = document.getElementById("btnSaveKey");
 const btnAiSolveQuiz = document.getElementById("btnAiSolveQuiz");
 const btnAiSummarize = document.getElementById("btnAiSummarize");
+const btnAiPeerReview = document.getElementById("btnAiPeerReview");
 const aiOutputBox = document.getElementById("aiOutputBox");
 
 // Status Bar
@@ -106,40 +108,52 @@ function setScanButtonState(state) {
 // ─── Mode Navigation Tabs ───────────────────────────────────────────────────
 
 function switchView(targetViewId) {
-  [tabMinerBtn, tabAutomatorBtn, tabAiBtn].forEach(b => b.classList.remove("active"));
-  [viewMiner, viewAutomator, viewAi].forEach(v => v.classList.remove("active"));
+  [tabMinerBtn, tabAutomatorBtn, tabAiBtn].forEach(b => b && b.classList.remove("active"));
+  [viewMiner, viewAutomator, viewAi].forEach(v => {
+    if (v) {
+      v.style.display = "none";
+      v.classList.remove("active");
+    }
+  });
 
-  if (targetViewId === "viewMiner") {
-    tabMinerBtn.classList.add("active");
+  if (targetViewId === "viewMiner" && viewMiner) {
+    if (tabMinerBtn) tabMinerBtn.classList.add("active");
+    viewMiner.style.display = "flex";
     viewMiner.classList.add("active");
-  } else if (targetViewId === "viewAutomator") {
-    tabAutomatorBtn.classList.add("active");
+  } else if (targetViewId === "viewAutomator" && viewAutomator) {
+    if (tabAutomatorBtn) tabAutomatorBtn.classList.add("active");
+    viewAutomator.style.display = "flex";
     viewAutomator.classList.add("active");
-  } else if (targetViewId === "viewAi") {
-    tabAiBtn.classList.add("active");
+  } else if (targetViewId === "viewAi" && viewAi) {
+    if (tabAiBtn) tabAiBtn.classList.add("active");
+    viewAi.style.display = "flex";
     viewAi.classList.add("active");
   }
 }
 
-tabMinerBtn.addEventListener("click", () => switchView("viewMiner"));
-tabAutomatorBtn.addEventListener("click", () => switchView("viewAutomator"));
-tabAiBtn.addEventListener("click", () => switchView("viewAi"));
+if (tabMinerBtn) tabMinerBtn.addEventListener("click", () => switchView("viewMiner"));
+if (tabAutomatorBtn) tabAutomatorBtn.addEventListener("click", () => switchView("viewAutomator"));
+if (tabAiBtn) tabAiBtn.addEventListener("click", () => switchView("viewAi"));
 
 // ─── Feed Tabs (Mined vs Skipped Audit) ──────────────────────────────────────
 
-feedTabMined.addEventListener("click", () => {
-  feedTabMined.classList.add("active");
-  feedTabSkipped.classList.remove("active");
-  logBox.style.display = "flex";
-  skippedBox.style.display = "none";
-});
+if (feedTabMined) {
+  feedTabMined.addEventListener("click", () => {
+    feedTabMined.classList.add("active");
+    if (feedTabSkipped) feedTabSkipped.classList.remove("active");
+    if (logBox) logBox.style.display = "flex";
+    if (skippedBox) skippedBox.style.display = "none";
+  });
+}
 
-feedTabSkipped.addEventListener("click", () => {
-  feedTabSkipped.classList.add("active");
-  feedTabMined.classList.remove("active");
-  logBox.style.display = "none";
-  skippedBox.style.display = "flex";
-});
+if (feedTabSkipped) {
+  feedTabSkipped.addEventListener("click", () => {
+    feedTabSkipped.classList.add("active");
+    if (feedTabMined) feedTabMined.classList.remove("active");
+    if (logBox) logBox.style.display = "none";
+    if (skippedBox) skippedBox.style.display = "flex";
+  });
+}
 
 function addSkippedItem(title, type, reason) {
   skippedItems.push({
@@ -148,10 +162,13 @@ function addSkippedItem(title, type, reason) {
     reason: reason || "Non-transcript item"
   });
   renderSkippedItems();
+  saveCollectedFiles();
 }
 
 function renderSkippedItems() {
   if (skippedCountLabel) skippedCountLabel.textContent = skippedItems.length;
+  if (!skippedBox) return;
+
   if (skippedItems.length === 0) {
     skippedBox.innerHTML = '<div class="empty-skipped-hint">No items skipped yet.</div>';
     return;
@@ -160,12 +177,17 @@ function renderSkippedItems() {
   skippedItems.forEach(item => {
     const row = document.createElement("div");
     row.className = "skipped-row";
-    const typeLabel = item.type.toUpperCase();
+    const typeLabel = item.type === "reading" ? "READ"
+      : item.type === "video" ? "VID"
+      : item.type === "assignment" ? "ASSIGN"
+      : item.type === "discussion" ? "DISC"
+      : item.type === "lab" ? "LAB"
+      : item.type.toUpperCase();
     const typeBadgeClass = `badge-${item.type}`;
     row.innerHTML = `
       <div class="skipped-title-line">
         <span class="lesson-type-badge ${typeBadgeClass}">${typeLabel}</span>
-        <span class="lesson-title-text">${item.title}</span>
+        <span class="lesson-title-text">${sanitizeFilename(item.title)}</span>
       </div>
       <div class="skipped-reason-line">${item.reason}</div>
     `;
@@ -181,25 +203,30 @@ function getSelectedFormat() {
 }
 
 function log(message, type = "normal") {
-  logSection.style.display = "block";
+  if (logSection) logSection.style.display = "block";
   const entry = document.createElement("div");
   entry.textContent = message;
   if (type === "success") entry.className = "log-entry-success";
   if (type === "skip")    entry.className = "log-entry-skip";
   if (type === "error")   entry.className = "log-entry-error";
-  logBox.appendChild(entry);
-  logBox.scrollTop = logBox.scrollHeight;
+  if (logBox) {
+    logBox.appendChild(entry);
+    logBox.scrollTop = logBox.scrollHeight;
+  }
   if (minedCountLabel) minedCountLabel.textContent = collectedFiles.length;
   return entry;
 }
 
 function replaceLog(entry, message, type = "normal") {
+  if (!entry) return;
   entry.textContent = message;
   entry.className = "";
   if (type === "success") entry.className = "log-entry-success";
   if (type === "skip")    entry.className = "log-entry-skip";
   if (type === "error")   entry.className = "log-entry-error";
-  logBox.scrollTop = logBox.scrollHeight;
+  if (logBox) {
+    logBox.scrollTop = logBox.scrollHeight;
+  }
   if (minedCountLabel) minedCountLabel.textContent = collectedFiles.length;
 }
 
@@ -209,13 +236,15 @@ function sanitizeFilename(name) {
 
 function setButtonState(running) {
   isRunning = running;
-  extractBtn.disabled = running;
+  if (extractBtn) extractBtn.disabled = running;
   if (mineSelectedBtn) mineSelectedBtn.disabled = running;
-  stopBtn.style.display = running ? "flex" : "none";
-  if (autoToggle.checked) {
-    nextBtn.style.display = "none";
-  } else {
-    nextBtn.style.display = running ? "flex" : "none";
+  if (stopBtn) stopBtn.style.display = running ? "flex" : "none";
+  if (nextBtn) {
+    if (autoToggle && autoToggle.checked) {
+      nextBtn.style.display = "none";
+    } else {
+      nextBtn.style.display = running ? "flex" : "none";
+    }
   }
 }
 
@@ -267,13 +296,13 @@ async function loadCollectedFiles() {
     if (data.collectedFiles) {
       collectedFiles = JSON.parse(data.collectedFiles);
       if (collectedFiles.length > 0) {
-        logSection.style.display = "block";
-        logBox.innerHTML = "";
+        if (logSection) logSection.style.display = "block";
+        if (logBox) logBox.innerHTML = "";
         collectedFiles.forEach(f => {
           log(`[${f.index}] ${sanitizeFilename(f.title)}`, "success");
         });
         log(`\n${collectedFiles.length} file(s) ready — click Download all to save.`, "success");
-        downloadBtn.style.display = "flex";
+        if (downloadBtn) downloadBtn.style.display = "flex";
       }
     }
   } catch {
@@ -289,23 +318,28 @@ function generateContent(title, transcript) {
 }
 
 async function generateDocx(title, transcript) {
-  const doc = new docx.Document({
-    sections: [{
-      children: [
-        new docx.Paragraph({
-          children: [new docx.TextRun({ text: title, bold: true, size: 36 })],
-          spacing: { after: 200 }
-        }),
-        ...transcript.split("\n").map(line =>
+  if (typeof docx !== "undefined" && docx.Document && docx.Packer) {
+    const doc = new docx.Document({
+      sections: [{
+        children: [
           new docx.Paragraph({
-            children: [new docx.TextRun({ text: line, size: 24 })],
-            spacing: { after: 80 }
-          })
-        )
-      ]
-    }]
-  });
-  return await docx.Packer.toBlob(doc);
+            children: [new docx.TextRun({ text: title, bold: true, size: 36, color: "1F5C6B" })],
+            spacing: { after: 200 }
+          }),
+          ...transcript.split("\n").map(line =>
+            new docx.Paragraph({
+              children: [new docx.TextRun({ text: line, size: 24 })],
+              spacing: { after: 80 }
+            })
+          )
+        ]
+      }]
+    });
+    return await docx.Packer.toBlob(doc);
+  }
+
+  // Fallback text blob if docx engine unavailable
+  return new Blob([generateContent(title, transcript)], { type: "text/plain" });
 }
 
 async function generatePdf(title, transcript) {
@@ -315,14 +349,14 @@ async function generatePdf(title, transcript) {
     font-size: 12px;
     line-height: 1.6;
     padding: 20px;
-    color: #000;
+    color: #1C1C1A;
   `;
   function escapeHtml(str) {
     return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
   element.innerHTML = `
-    <h1 style="font-size:18px; font-weight:bold; margin-bottom:16px;">${escapeHtml(title)}</h1>
-    <hr style="margin-bottom:16px;">
+    <h1 style="font-size:18px; font-weight:bold; color:#1F5C6B; margin-bottom:16px;">${escapeHtml(title)}</h1>
+    <hr style="margin-bottom:16px; border:none; border-top:1px solid #D8D5CD;">
     <div>${transcript.split("\n").map(line =>
       line.trim() ? `<p style="margin:4px 0;">${escapeHtml(line)}</p>` : `<br>`
     ).join("")}</div>
@@ -371,7 +405,6 @@ async function downloadAsZip(files) {
   URL.revokeObjectURL(url);
 }
 
-// Single file download (immediate)
 async function downloadSingleFile(title, transcript, format, index) {
   const prefix = String(index).padStart(2, "0");
   const safeName = sanitizeFilename(title);
@@ -393,7 +426,7 @@ async function downloadSingleFile(title, transcript, format, index) {
   URL.revokeObjectURL(url);
 }
 
-// ─── Core extraction & communication ──────────────────────────────────────────
+// ─── Content Script Injection & Communication ─────────────────────────────────
 
 async function ensureContentScriptInjected(tabId) {
   const isLoaded = await new Promise((resolve) => {
@@ -526,13 +559,13 @@ async function extractCurrentVideo(index, silentMode = false) {
     }
 
     // Check user content filters (Videos vs Readings)
-    const isVideo = !response.transcript.includes("\n\n");
-    if (isVideo && !includeVideos.checked) {
+    const isVideo = response.pageType === "video" || !response.transcript.includes("\n\n");
+    if (isVideo && includeVideos && !includeVideos.checked) {
       addSkippedItem(response.title, "video", "Excluded by filter: Videos unchecked");
       replaceLog(searchingEntry, `Skipped Video (Videos unchecked): ${sanitizeFilename(response.title)}`, "skip");
       return { success: false, reason: "filtered_video", isEndOfCourse: response.isEndOfCourse };
     }
-    if (!isVideo && !includeReadings.checked) {
+    if (!isVideo && includeReadings && !includeReadings.checked) {
       addSkippedItem(response.title, "reading", "Excluded by filter: Readings unchecked");
       replaceLog(searchingEntry, `Skipped Reading (Readings unchecked): ${sanitizeFilename(response.title)}`, "skip");
       return { success: false, reason: "filtered_reading", isEndOfCourse: response.isEndOfCourse };
@@ -613,7 +646,7 @@ async function runAutoMode() {
 
   if (collectedFiles.length > 0) {
     log(`\nFinished! ${collectedFiles.length} transcript(s) mined. Click Download all to save.`, "success");
-    downloadBtn.style.display = "flex";
+    if (downloadBtn) downloadBtn.style.display = "flex";
     await downloadAsZip(collectedFiles);
   }
 }
@@ -728,6 +761,7 @@ function extractCurriculumDirectly() {
 // ─── Curriculum Explorer Functions ────────────────────────────────────────────
 
 function getCheckedCurriculumItems() {
+  if (!curriculumList) return [];
   const checkboxes = curriculumList.querySelectorAll("input.item-chk:checked");
   return Array.from(checkboxes).map(cb => ({
     title: cb.dataset.title,
@@ -737,11 +771,12 @@ function getCheckedCurriculumItems() {
 }
 
 function updateCurriculumStats() {
+  if (!curriculumList || !curriculumStats) return;
   const total = curriculumList.querySelectorAll("input.item-chk").length;
   const selected = curriculumList.querySelectorAll("input.item-chk:checked").length;
   curriculumStats.textContent = `${selected} / ${total} selected`;
-  selectedCountBadge.textContent = selected;
-  mineSelectedBtn.style.display = selected > 0 ? "block" : "none";
+  if (selectedCountBadge) selectedCountBadge.textContent = selected;
+  if (mineSelectedBtn) mineSelectedBtn.style.display = selected > 0 ? "block" : "none";
 
   scannedModules.forEach((mod, modIdx) => {
     const modItems = curriculumList.querySelectorAll(`input.item-chk[data-module-idx="${modIdx}"]`);
@@ -759,11 +794,12 @@ function updateCurriculumStats() {
 }
 
 function renderCurriculum(modules) {
+  if (!curriculumList) return;
   curriculumList.innerHTML = "";
   if (!modules || modules.length === 0) {
     curriculumList.innerHTML = '<div class="curriculum-empty">No modules detected. Make sure you are on a Coursera course page with the course outline or sidebar visible.</div>';
-    mineSelectedBtn.style.display = "none";
-    curriculumStats.textContent = "0 items";
+    if (mineSelectedBtn) mineSelectedBtn.style.display = "none";
+    if (curriculumStats) curriculumStats.textContent = "0 items";
     return;
   }
 
@@ -789,12 +825,11 @@ function renderCurriculum(modules) {
       const rowEl = document.createElement("div");
       rowEl.className = "lesson-item-row";
 
-      // By default: check videos if includeVideos, readings if includeReadings, quizzes if includeQuizzes
       let isChecked = true;
-      if (item.type === "video") isChecked = includeVideos.checked;
-      else if (item.type === "reading") isChecked = includeReadings.checked;
-      else if (item.type === "quiz" || item.type === "exam" || item.type === "assignment") isChecked = includeQuizzes.checked;
-      else if (item.type === "lab" || item.type === "discussion") isChecked = false; // Excluded by default
+      if (item.type === "video") isChecked = includeVideos ? includeVideos.checked : true;
+      else if (item.type === "reading") isChecked = includeReadings ? includeReadings.checked : true;
+      else if (item.type === "quiz" || item.type === "exam" || item.type === "assignment") isChecked = includeQuizzes ? includeQuizzes.checked : false;
+      else if (item.type === "lab" || item.type === "discussion") isChecked = false;
 
       const typeBadgeClass = `badge-${item.type}`;
       const typeLabel = item.type === "reading" ? "READ"
@@ -845,6 +880,7 @@ function renderCurriculum(modules) {
 }
 
 function applyCurriculumFilter(filterFn) {
+  if (!curriculumList) return;
   curriculumList.querySelectorAll("input.item-chk").forEach(chk => {
     chk.checked = filterFn(chk.dataset.type);
   });
@@ -865,8 +901,8 @@ async function runMineSelected() {
   skippedItems = [];
   await saveCollectedFiles();
   setButtonState(true);
-  logBox.innerHTML = "";
-  downloadBtn.style.display = "none";
+  if (logBox) logBox.innerHTML = "";
+  if (downloadBtn) downloadBtn.style.display = "none";
 
   log(`Mining ${items.length} selected lesson(s)...`, "success");
 
@@ -882,7 +918,7 @@ async function runMineSelected() {
 
       if (shouldStop) break;
 
-      await extractCurrentVideo(i + 1, autoToggle.checked);
+      await extractCurrentVideo(i + 1, autoToggle ? autoToggle.checked : false);
       await new Promise(r => setTimeout(r, 1000));
 
     } catch (err) {
@@ -895,8 +931,8 @@ async function runMineSelected() {
 
   if (collectedFiles.length > 0) {
     log(`\nFinished! ${collectedFiles.length} transcript(s) collected.`, "success");
-    downloadBtn.style.display = "flex";
-    if (autoToggle.checked) {
+    if (downloadBtn) downloadBtn.style.display = "flex";
+    if (autoToggle && autoToggle.checked) {
       await downloadAsZip(collectedFiles);
     }
   }
@@ -904,274 +940,369 @@ async function runMineSelected() {
 
 // ─── Course Automator Handlers (Inspired by coursera-skip-tool) ───────────────
 
-btnAutoMarkCurrent.addEventListener("click", async () => {
-  automatorStatusNote.textContent = "Processing lesson completion...";
-  try {
-    const res = await sendMessageToTab({ action: "completeLesson" });
-    if (res && res.success) {
-      automatorStatusNote.textContent = `Completed: ${res.message}`;
-    } else {
-      automatorStatusNote.textContent = `Notice: ${res ? res.error : "Could not complete this page"}`;
+if (btnAutoMarkCurrent) {
+  btnAutoMarkCurrent.addEventListener("click", async () => {
+    if (automatorStatusNote) automatorStatusNote.textContent = "Processing lesson completion...";
+    try {
+      const res = await sendMessageToTab({ action: "completeLesson" });
+      if (res && res.success) {
+        if (automatorStatusNote) automatorStatusNote.textContent = `Completed: ${res.message}`;
+      } else {
+        if (automatorStatusNote) automatorStatusNote.textContent = `Notice: ${res ? res.error : "Could not complete this page"}`;
+      }
+    } catch (err) {
+      if (automatorStatusNote) automatorStatusNote.textContent = `Error: ${err.message}`;
     }
-  } catch (err) {
-    automatorStatusNote.textContent = `Error: ${err.message}`;
-  }
-});
+  });
+}
 
-btnAssistPeerReview.addEventListener("click", async () => {
-  automatorStatusNote.textContent = "Assisting peer review rubrics & comments...";
-  try {
-    const res = await sendMessageToTab({ action: "assistPeerReview" });
-    if (res && res.success) {
-      automatorStatusNote.textContent = res.message;
-    } else {
-      automatorStatusNote.textContent = `Notice: ${res ? res.error : "Please open a peer review page first"}`;
+if (btnHandleDiscussion) {
+  btnHandleDiscussion.addEventListener("click", async () => {
+    if (automatorStatusNote) automatorStatusNote.textContent = "Generating thoughtful academic response...";
+    try {
+      const res = await sendMessageToTab({ action: "handleDiscussionPrompt" });
+      if (res && res.success) {
+        if (automatorStatusNote) automatorStatusNote.textContent = res.message;
+      } else {
+        if (automatorStatusNote) automatorStatusNote.textContent = `Notice: ${res ? res.error : "Open a discussion forum page first"}`;
+      }
+    } catch (err) {
+      if (automatorStatusNote) automatorStatusNote.textContent = `Error: ${err.message}`;
     }
-  } catch (err) {
-    automatorStatusNote.textContent = `Error: ${err.message}`;
-  }
-});
+  });
+}
 
-btnAutoLoopCourse.addEventListener("click", async () => {
-  automatorStatusNote.textContent = "Auto-completing course queue...";
-  // Switch to transcript miner auto mode to auto-advance
-  switchView("viewMiner");
-  autoToggle.checked = true;
-  autoToggle.dispatchEvent(new Event("change"));
-  extractBtn.click();
-});
+if (btnAssistPeerReview) {
+  btnAssistPeerReview.addEventListener("click", async () => {
+    if (automatorStatusNote) automatorStatusNote.textContent = "Assisting peer review rubrics & comments...";
+    try {
+      const res = await sendMessageToTab({ action: "assistPeerReview" });
+      if (res && res.success) {
+        if (automatorStatusNote) automatorStatusNote.textContent = res.message;
+      } else {
+        if (automatorStatusNote) automatorStatusNote.textContent = `Notice: ${res ? res.error : "Please open a peer review page first"}`;
+      }
+    } catch (err) {
+      if (automatorStatusNote) automatorStatusNote.textContent = `Error: ${err.message}`;
+    }
+  });
+}
+
+if (btnAutoLoopCourse) {
+  btnAutoLoopCourse.addEventListener("click", async () => {
+    if (automatorStatusNote) automatorStatusNote.textContent = "Auto-completing course queue...";
+    switchView("viewMiner");
+    if (autoToggle) {
+      autoToggle.checked = true;
+      autoToggle.dispatchEvent(new Event("change"));
+    }
+    if (extractBtn) extractBtn.click();
+  });
+}
 
 // ─── Gemini AI Co-Pilot Handlers ──────────────────────────────────────────────
 
-btnSaveKey.addEventListener("click", async () => {
-  const key = geminiApiKeyInput.value.trim();
-  if (!key) {
-    alert("Please enter a valid Gemini API key.");
-    return;
-  }
-  userGeminiApiKey = key;
-  await setStorage({ geminiApiKey: key });
-  btnSaveKey.textContent = "Saved!";
-  setTimeout(() => { btnSaveKey.textContent = "Save"; }, 2000);
-});
+if (btnSaveKey) {
+  btnSaveKey.addEventListener("click", async () => {
+    const key = geminiApiKeyInput ? geminiApiKeyInput.value.trim() : "";
+    if (!key) {
+      alert("Please enter a valid Gemini API key from Google AI Studio.");
+      return;
+    }
+    userGeminiApiKey = key;
+    await setStorage({ geminiApiKey: key });
+    btnSaveKey.textContent = "Saved!";
+    setTimeout(() => { if (btnSaveKey) btnSaveKey.textContent = "Save"; }, 2000);
+  });
+}
 
 async function callGemini(promptText) {
   if (!userGeminiApiKey) {
     throw new Error("Please enter your free Google Gemini API key above.");
   }
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${userGeminiApiKey}`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: promptText }] }]
-    })
-  });
+  
+  // Try gemini-1.5-flash with automatic fallback to gemini-2.0-flash
+  const models = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"];
+  let lastError = null;
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error?.message || `Gemini API request failed (${response.status})`);
+  for (const model of models) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${userGeminiApiKey}`;
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: promptText }] }]
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const candidate = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (candidate) return candidate;
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        lastError = new Error(errorData.error?.message || `Gemini API request failed (${response.status}) on model ${model}`);
+      }
+    } catch (e) {
+      lastError = e;
+    }
   }
 
-  const data = await response.json();
-  const candidate = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  return candidate || "No answer generated by Gemini.";
+  throw lastError || new Error("Failed to generate response from Gemini API.");
 }
 
-btnAiSolveQuiz.addEventListener("click", async () => {
-  aiOutputBox.style.display = "block";
-  aiOutputBox.textContent = "Scanning quiz questions on page...";
+if (btnAiSolveQuiz) {
+  btnAiSolveQuiz.addEventListener("click", async () => {
+    if (!aiOutputBox) return;
+    aiOutputBox.style.display = "block";
+    aiOutputBox.textContent = "Scanning quiz questions on page...";
 
-  try {
-    const res = await sendMessageToTab({ action: "getQuizQuestions" });
-    if (!res || !res.success || !res.questions || res.questions.length === 0) {
-      aiOutputBox.textContent = "No quiz questions found on this page. Make sure you are on a Coursera quiz/practice test page.";
-      return;
-    }
+    try {
+      const res = await sendMessageToTab({ action: "getQuizQuestions" });
+      if (!res || !res.success || !res.questions || res.questions.length === 0) {
+        aiOutputBox.textContent = "No quiz questions found on this page. Make sure you are on a Coursera quiz/practice test page.";
+        return;
+      }
 
-    aiOutputBox.textContent = `Found ${res.questions.length} question(s). Asking Gemini AI for answers & explanations...`;
+      aiOutputBox.textContent = `Found ${res.questions.length} question(s). Asking Gemini AI for answers & explanations...`;
 
-    let prompt = "You are an expert Coursera academic tutor. Solve these quiz questions. For each question, specify the exact best choice and a concise 1-2 sentence explanation.\n\n";
-    res.questions.forEach((q, idx) => {
-      prompt += `Question ${idx + 1}: ${q.prompt}\n`;
-      q.options.forEach((opt, oIdx) => {
-        prompt += `  [${oIdx + 1}] ${opt.text}\n`;
+      let prompt = "You are an expert academic tutor. Solve each of the following Coursera quiz questions. For each question:\n1. State the question number.\n2. State the exact correct option or choice.\n3. Provide a clear, step-by-step 1-2 sentence explanation of why it is correct.\n\n";
+      res.questions.forEach((q, idx) => {
+        prompt += `Question ${idx + 1}: ${q.prompt}\n`;
+        q.options.forEach((opt, oIdx) => {
+          prompt += `  [${oIdx + 1}] ${opt.text}\n`;
+        });
+        prompt += "\n";
       });
-      prompt += "\n";
-    });
 
-    const aiAnswer = await callGemini(prompt);
-    aiOutputBox.textContent = aiAnswer;
+      const aiAnswer = await callGemini(prompt);
+      aiOutputBox.textContent = aiAnswer;
 
-  } catch (err) {
-    aiOutputBox.textContent = `Error: ${err.message}`;
-  }
-});
-
-btnAiSummarize.addEventListener("click", async () => {
-  aiOutputBox.style.display = "block";
-  aiOutputBox.textContent = "Extracting current lesson transcript...";
-
-  try {
-    const res = await sendMessageToTab({ action: "getTranscript" });
-    if (!res || !res.success || !res.transcript) {
-      aiOutputBox.textContent = "No transcript found on this page. Please open a video lecture or reading lesson first.";
-      return;
+    } catch (err) {
+      aiOutputBox.textContent = `Error: ${err.message}`;
     }
+  });
+}
 
-    aiOutputBox.textContent = `Transcript loaded (${res.transcript.length} chars). Generating executive study sheet...`;
+if (btnAiSummarize) {
+  btnAiSummarize.addEventListener("click", async () => {
+    if (!aiOutputBox) return;
+    aiOutputBox.style.display = "block";
+    aiOutputBox.textContent = "Extracting current lesson transcript...";
 
-    const prompt = `You are a high-level academic assistant. Create a high-yield executive study sheet for the following Coursera lesson:
+    try {
+      const res = await sendMessageToTab({ action: "getTranscript" });
+      if (!res || !res.success || !res.transcript) {
+        aiOutputBox.textContent = "No transcript found on this page. Please open a video lecture or reading lesson first.";
+        return;
+      }
+
+      aiOutputBox.textContent = `Transcript loaded (${res.transcript.length} chars). Generating executive study sheet...`;
+
+      const prompt = `You are a high-level academic assistant. Create a high-yield executive study sheet for the following Coursera lesson:
 Title: ${res.title}
 
 Transcript:
 ${res.transcript.substring(0, 15000)}
 
-Output formatted as:
-1. Executive Summary (2-3 sentences)
-2. Core Takeaways & Concepts (bullet points)
-3. Key Definitions or Formulas`;
+Please format the response as:
+1. Executive Summary (2-3 sentences overview)
+2. Core Concepts & Takeaways (concise bullet points)
+3. Key Definitions & Formulas (if any)`;
 
-    const summary = await callGemini(prompt);
-    aiOutputBox.textContent = summary;
+      const summary = await callGemini(prompt);
+      aiOutputBox.textContent = summary;
 
-  } catch (err) {
-    aiOutputBox.textContent = `Error: ${err.message}`;
-  }
-});
+    } catch (err) {
+      aiOutputBox.textContent = `Error: ${err.message}`;
+    }
+  });
+}
+
+if (btnAiPeerReview) {
+  btnAiPeerReview.addEventListener("click", async () => {
+    if (!aiOutputBox) return;
+    aiOutputBox.style.display = "block";
+    aiOutputBox.textContent = "Reading student submission from page...";
+
+    try {
+      const res = await sendMessageToTab({ action: "getPeerReviewContent" });
+      if (!res || !res.success) {
+        aiOutputBox.textContent = "Please open a peer review evaluation page to generate constructive feedback.";
+        return;
+      }
+
+      aiOutputBox.textContent = "Generating rubric-aligned peer review feedback with Gemini AI...";
+
+      const prompt = `You are a fair, encouraging academic peer reviewer. Evaluate this student submission and provide 3 distinct paragraphs of constructive, positive feedback adhering to highest rubric standards:
+
+Assignment Title: ${res.title}
+Submission Content:
+${(res.submissionContent || "General academic submission").substring(0, 10000)}
+
+Provide:
+1. Praise for specific strengths
+2. Verification of rubric criteria alignment
+3. Constructive recommendation for future learning`;
+
+      const feedback = await callGemini(prompt);
+      aiOutputBox.textContent = feedback;
+
+    } catch (err) {
+      aiOutputBox.textContent = `Error: ${err.message}`;
+    }
+  });
+}
 
 // ─── Curriculum Explorer Events ──────────────────────────────────────────────
 
-scanCurriculumBtn.addEventListener("click", async () => {
-  const isVisible = curriculumDrawer.style.display !== "none";
-  if (isVisible && scannedModules.length > 0) {
-    curriculumDrawer.style.display = "none";
-    setScanButtonState("scan");
-    return;
-  }
+if (scanCurriculumBtn) {
+  scanCurriculumBtn.addEventListener("click", async () => {
+    const isVisible = curriculumDrawer && curriculumDrawer.style.display !== "none";
+    if (isVisible && scannedModules.length > 0) {
+      curriculumDrawer.style.display = "none";
+      setScanButtonState("scan");
+      return;
+    }
 
-  setScanButtonState("scanning");
-  curriculumDrawer.style.display = "flex";
+    setScanButtonState("scanning");
+    if (curriculumDrawer) curriculumDrawer.style.display = "flex";
 
-  try {
-    const tabs = await new Promise(r => chrome.tabs.query({ active: true, currentWindow: true }, r));
-    if (!tabs || tabs.length === 0) throw new Error("No active browser tab.");
-    const tab = tabs[0];
-
-    let modules = null;
-
-    // Strategy 1: sendMessage to content script
     try {
-      const response = await sendMessageToTab({ action: "scanCurriculum" });
-      if (response && response.success && response.modules && response.modules.length > 0) {
-        modules = response.modules;
-      }
-    } catch (msgErr) {
-      console.warn("sendMessage scan failed, falling back to direct in-page execution:", msgErr);
-    }
+      const tabs = await new Promise(r => chrome.tabs.query({ active: true, currentWindow: true }, r));
+      if (!tabs || tabs.length === 0) throw new Error("No active browser tab.");
+      const tab = tabs[0];
 
-    // Strategy 2: Direct script execution in tab (immune to message port closure!)
-    if (!modules && chrome.scripting && tab.id) {
+      let modules = null;
+
+      // Strategy 1: sendMessage to content script
       try {
-        const results = await chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          func: extractCurriculumDirectly
-        });
-        if (results && results[0] && results[0].result && results[0].result.length > 0) {
-          modules = results[0].result;
+        const response = await sendMessageToTab({ action: "scanCurriculum" });
+        if (response && response.success && response.modules && response.modules.length > 0) {
+          modules = response.modules;
         }
-      } catch (execErr) {
-        console.warn("Direct execution fallback failed:", execErr);
+      } catch (msgErr) {
+        console.warn("sendMessage scan failed, falling back to direct in-page execution:", msgErr);
       }
-    }
 
-    if (modules && modules.length > 0) {
-      scannedModules = modules;
-      renderCurriculum(scannedModules);
-      setScanButtonState("hide");
-    } else {
-      curriculumList.innerHTML = '<div class="curriculum-empty">Could not find lessons. Make sure you are on a Coursera course page with the course outline or sidebar open.</div>';
+      // Strategy 2: Direct script execution in tab (immune to message port closure)
+      if (!modules && chrome.scripting && tab.id) {
+        try {
+          const results = await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            func: extractCurriculumDirectly
+          });
+          if (results && results[0] && results[0].result && results[0].result.length > 0) {
+            modules = results[0].result;
+          }
+        } catch (execErr) {
+          console.warn("Direct execution fallback failed:", execErr);
+        }
+      }
+
+      if (modules && modules.length > 0) {
+        scannedModules = modules;
+        renderCurriculum(scannedModules);
+        setScanButtonState("hide");
+      } else {
+        if (curriculumList) curriculumList.innerHTML = '<div class="curriculum-empty">Could not find lessons. Make sure you are on a Coursera course page with the course outline or sidebar open.</div>';
+        setScanButtonState("retry");
+      }
+    } catch (err) {
+      if (curriculumList) curriculumList.innerHTML = `<div class="curriculum-empty">Could not scan lessons. Please refresh (F5) the Coursera tab and try again.</div>`;
       setScanButtonState("retry");
     }
-  } catch (err) {
-    curriculumList.innerHTML = `<div class="curriculum-empty">Could not scan lessons. Please refresh (F5) the Coursera tab and try again.</div>`;
-    setScanButtonState("retry");
-  }
-});
+  });
+}
 
-btnFilterAll.addEventListener("click", () => applyCurriculumFilter(() => true));
-btnFilterVideos.addEventListener("click", () => applyCurriculumFilter(t => t === "video"));
-btnFilterReadings.addEventListener("click", () => applyCurriculumFilter(t => t === "reading"));
-btnFilterNone.addEventListener("click", () => applyCurriculumFilter(() => false));
+if (btnFilterAll) btnFilterAll.addEventListener("click", () => applyCurriculumFilter(() => true));
+if (btnFilterVideos) btnFilterVideos.addEventListener("click", () => applyCurriculumFilter(t => t === "video"));
+if (btnFilterReadings) btnFilterReadings.addEventListener("click", () => applyCurriculumFilter(t => t === "reading"));
+if (btnFilterNone) btnFilterNone.addEventListener("click", () => applyCurriculumFilter(() => false));
 
-mineSelectedBtn.addEventListener("click", async () => {
-  await runMineSelected();
-});
+if (mineSelectedBtn) {
+  mineSelectedBtn.addEventListener("click", async () => {
+    await runMineSelected();
+  });
+}
 
 // ─── Auto advance toggle & Action buttons ─────────────────────────────────────
 
-autoToggle.addEventListener("change", () => {
-  if (autoToggle.checked) {
-    modeTitle.textContent = "Auto-advance: On";
-    modeDesc.textContent = "Silently mines all lessons into one ZIP archive.";
-    extractBtn.querySelector(".btn-text").textContent = "Start auto-mining";
-    nextBtn.style.display = "none";
-  } else {
-    modeTitle.textContent = "Auto-advance: Off";
-    modeDesc.textContent = "You click Next lesson yourself after each page.";
-    extractBtn.querySelector(".btn-text").textContent = "Mine this lesson";
-    nextBtn.style.display = isRunning ? "flex" : "none";
-  }
-});
+if (autoToggle) {
+  autoToggle.addEventListener("change", () => {
+    if (autoToggle.checked) {
+      if (modeTitle) modeTitle.textContent = "Auto-advance: On";
+      if (modeDesc) modeDesc.textContent = "Silently mines all lessons into one ZIP archive.";
+      if (extractBtn) extractBtn.querySelector(".btn-text").textContent = "Start auto-mining";
+      if (nextBtn) nextBtn.style.display = "none";
+    } else {
+      if (modeTitle) modeTitle.textContent = "Auto-advance: Off";
+      if (modeDesc) modeDesc.textContent = "You click Next lesson yourself after each page.";
+      if (extractBtn) extractBtn.querySelector(".btn-text").textContent = "Mine this lesson";
+      if (nextBtn) nextBtn.style.display = isRunning ? "flex" : "none";
+    }
+  });
+}
 
-extractBtn.addEventListener("click", async () => {
-  collectedFiles = [];
-  skippedItems = [];
-  await saveCollectedFiles();
-  logBox.innerHTML = "";
-  downloadBtn.style.display = "none";
+if (extractBtn) {
+  extractBtn.addEventListener("click", async () => {
+    collectedFiles = [];
+    skippedItems = [];
+    await saveCollectedFiles();
+    if (logBox) logBox.innerHTML = "";
+    if (downloadBtn) downloadBtn.style.display = "none";
 
-  if (autoToggle.checked) {
-    await runAutoMode();
-  } else {
-    setButtonState(true);
-    await extractCurrentVideo(1, false);
-    setButtonState(false);
-  }
-});
+    if (autoToggle && autoToggle.checked) {
+      await runAutoMode();
+    } else {
+      setButtonState(true);
+      await extractCurrentVideo(1, false);
+      setButtonState(false);
+    }
+  });
+}
 
-nextBtn.addEventListener("click", async () => {
-  nextBtn.disabled = true;
-  nextBtn.querySelector(".btn-text").textContent = "Loading...";
-  const advanced = await goToNextVideo();
-  if (!advanced) log("Could not find Next button.", "error");
-  nextBtn.disabled = false;
-  nextBtn.querySelector(".btn-text").textContent = "Next lesson";
-});
+if (nextBtn) {
+  nextBtn.addEventListener("click", async () => {
+    nextBtn.disabled = true;
+    nextBtn.querySelector(".btn-text").textContent = "Loading...";
+    const advanced = await goToNextVideo();
+    if (!advanced) log("Could not find Next button.", "error");
+    nextBtn.disabled = false;
+    nextBtn.querySelector(".btn-text").textContent = "Next lesson";
+  });
+}
 
-stopBtn.addEventListener("click", () => {
-  shouldStop = true;
-  log("Stopping after current lesson...", "skip");
-});
+if (stopBtn) {
+  stopBtn.addEventListener("click", () => {
+    shouldStop = true;
+    log("Stopping after current lesson...", "skip");
+  });
+}
 
-downloadBtn.addEventListener("click", async () => {
-  const originalText = downloadBtn.querySelector("span").textContent;
-  downloadBtn.querySelector("span").textContent = "Preparing ZIP...";
-  downloadBtn.disabled = true;
-  await downloadAsZip(collectedFiles);
-  downloadBtn.querySelector("span").textContent = originalText;
-  downloadBtn.disabled = false;
-});
+if (downloadBtn) {
+  downloadBtn.addEventListener("click", async () => {
+    const originalText = downloadBtn.querySelector("span").textContent;
+    downloadBtn.querySelector("span").textContent = "Preparing ZIP...";
+    downloadBtn.disabled = true;
+    await downloadAsZip(collectedFiles);
+    downloadBtn.querySelector("span").textContent = originalText;
+    downloadBtn.disabled = false;
+  });
+}
 
-clearBtn.addEventListener("click", async () => {
-  collectedFiles = [];
-  skippedItems = [];
-  await setStorage({ collectedFiles: "[]", skippedItems: "[]" });
-  logBox.innerHTML = "";
-  renderSkippedItems();
-  downloadBtn.style.display = "none";
-  logSection.style.display = "none";
-});
+if (clearBtn) {
+  clearBtn.addEventListener("click", async () => {
+    collectedFiles = [];
+    skippedItems = [];
+    await setStorage({ collectedFiles: "[]", skippedItems: "[]" });
+    if (logBox) logBox.innerHTML = "";
+    renderSkippedItems();
+    if (downloadBtn) downloadBtn.style.display = "none";
+    if (logSection) logSection.style.display = "none";
+  });
+}
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 

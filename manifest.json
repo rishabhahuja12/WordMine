@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "WordMine",
+  "name": "WordMine - Coursera Power Suite",
   "version": "2.0.0",
-  "description": "Effortlessly mine and save Coursera video transcripts as DOCX, PDF, or TXT files directly from your browser.",
+  "description": "100% Free All-In-One Coursera Power Suite: Transcript Miner (DOCX/PDF/TXT), Course Automator, and Gemini AI Co-Pilot.",
 
   "permissions": [
     "storage",
@@ -12,7 +12,8 @@
 
   "host_permissions": [
     "https://*.coursera.org/*",
-    "https://coursera.org/*"
+    "https://coursera.org/*",
+    "https://generativelanguage.googleapis.com/*"
   ],
 
   "action": {
@@ -42,7 +43,12 @@
 
   "web_accessible_resources": [
     {
-      "resources": ["jszip.min.js", "docx.min.js", "html2pdf.min.js", "pdfobject.min.js"],
+      "resources": [
+        "jszip.min.js",
+        "docx.min.js",
+        "html2pdf.min.js",
+        "pdfobject.min.js"
+      ],
       "matches": ["https://*.coursera.org/*"]
     }
   ]

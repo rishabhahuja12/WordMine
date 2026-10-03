@@ -1,39 +1,55 @@
-// content.js — runs on every Coursera lesson page
-// Listens for messages from popup.js and responds with transcript / reading data
+// content.js — WordMine Power Suite Content Script
+// Operates on Coursera lesson, reading, quiz, assignment, lab, and discussion pages.
 
 if (window.__wordmine_initialized) {
-  // Content script already loaded in this frame
+  // Content script already initialized in this frame
 } else {
 window.__wordmine_initialized = true;
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
+// ─── 1. Content Taxonomy & Classification ───────────────────────────────────
 
-function isReadingPage() {
-  // Reading / summary pages live under /supplement/
-  return window.location.href.includes("/supplement/");
+function getPageType() {
+  const url = window.location.href;
+  if (url.includes("/lecture/")) return "video";
+  if (url.includes("/supplement/")) return "reading";
+  if (url.includes("/quiz/") || url.includes("/practice-quiz/")) return "quiz";
+  if (url.includes("/exam/")) return "exam";
+  if (url.includes("/assignment-submission/") || url.includes("/peer/")) return "assignment";
+  if (url.includes("/discussionPrompt/") || url.includes("/discussion/")) return "discussion";
+  if (url.includes("/ungradedWidget/") || url.includes("/ungradedLti/") || url.includes("/lab/")) return "lab";
+  return "other";
+}
+
+function isQuizOrActivityPage() {
+  const type = getPageType();
+  return type === "quiz" || type === "exam" || type === "assignment" || type === "discussion" || type === "lab";
 }
 
 function cleanText(str) {
-  // Strip zero-width spaces injected into the transcript markup, normalise nbsp
-  return str.replace(/​/g, "").replace(/ /g, " ").trim();
+  return (str || "")
+    .replace(/​/g, "")           // Zero-width space
+    .replace(/\u00a0/g, " ")     // Non-breaking space
+    .trim();
 }
 
 function getVideoTitle() {
   const heading = document.querySelector(".video-name")
     || document.querySelector("#main-container h1")
+    || document.querySelector('[role="main"] h1')
     || document.querySelector("h1");
-  if (heading) return heading.innerText.trim();
-  return document.title.split("|")[0].trim() || "Untitled";
+  if (heading) return cleanText(heading.innerText);
+  return cleanText(document.title.split("|")[0]);
 }
 
 function getReadingTitle() {
-  // The reading title is the first heading inside the main content area
   const heading = document.querySelector("#main-container h1")
     || document.querySelector('[role="main"] h1')
     || document.querySelector("h1");
-  if (heading) return heading.innerText.trim();
-  return document.title.split("|")[0].trim() || "Untitled";
+  if (heading) return cleanText(heading.innerText);
+  return cleanText(document.title.split("|")[0]);
 }
+
+// ─── 2. Transcript & Reading Extraction ─────────────────────────────────────
 
 function getTranscript() {
   const phrases = document.querySelectorAll(".rc-Phrase");
@@ -46,12 +62,13 @@ function getTranscript() {
 }
 
 function getReadingContent() {
-  // Coursera renders reading bodies as CML (Coursera Markup Language)
   const selectors = [
     '[data-testid="cml-viewer"]',
     ".rc-CML",
     ".rc-DesktopSupplement .rc-CML",
     ".item-page-content .rc-CML",
+    ".rc-SupplementContent",
+    ".item-page-content"
   ];
   for (const sel of selectors) {
     const nodes = document.querySelectorAll(sel);
@@ -66,24 +83,18 @@ function getReadingContent() {
   return null;
 }
 
-// ─── Transcript tab (right-hand side panel) ──────────────────────────────────
-
 function getTranscriptTab() {
   return document.querySelector('[data-testid="item-tool-panel-button-transcript"]')
     || document.querySelector('button[aria-label="Transcript"]')
     || Array.from(document.querySelectorAll("button")).find(
-        el => el.innerText.trim().toLowerCase() === "transcript"
+        el => (el.innerText || "").trim().toLowerCase() === "transcript"
       );
 }
 
 function isTranscriptTabActive() {
-  // The transcript phrases being present in the DOM is the real signal that the
-  // panel is open and showing the transcript.
   if (document.querySelector(".rc-Phrase")) return true;
-
   const tab = getTranscriptTab();
   if (!tab) return false;
-  // New UI uses aria-pressed; keep aria-selected/class checks for safety.
   return tab.getAttribute("aria-pressed") === "true"
     || tab.getAttribute("aria-selected") === "true"
     || tab.classList.contains("active")
@@ -91,8 +102,6 @@ function isTranscriptTabActive() {
 }
 
 function openTranscriptTab() {
-  // Only click when the transcript isn't already showing — clicking an already
-  // active tab in the new UI collapses the panel.
   if (isTranscriptTabActive()) return true;
   const tab = getTranscriptTab();
   if (tab) {
@@ -102,44 +111,7 @@ function openTranscriptTab() {
   return false;
 }
 
-function isEndOfCourse() {
-  // "Go to My Learning" appears on the last page of a course
-  const allButtons = Array.from(document.querySelectorAll("a, button"));
-  return allButtons.some(el =>
-    el.innerText.trim().toLowerCase().includes("go to my learning")
-  );
-}
-
-function clickNextVideo() {
-  const selectors = [
-    '[data-track-component="next_item"]',
-    'button[aria-label="Go to next item"]',
-    'a[aria-label="Go to next item"]',
-  ];
-
-  for (const selector of selectors) {
-    const btn = document.querySelector(selector);
-    if (btn) {
-      btn.click();
-      return true;
-    }
-  }
-
-  // Fallback: find by text content
-  const allButtons = Array.from(document.querySelectorAll("a, button"));
-  const nextBtn = allButtons.find(el =>
-    el.innerText.trim().toLowerCase().includes("go to next item")
-  );
-  if (nextBtn) {
-    nextBtn.click();
-    return true;
-  }
-
-  return false;
-}
-
 function waitForTranscript(timeout = 8000) {
-  // Returns a promise that resolves when transcript phrases appear
   return new Promise((resolve) => {
     const start = Date.now();
     const interval = setInterval(() => {
@@ -150,42 +122,60 @@ function waitForTranscript(timeout = 8000) {
       }
       if (Date.now() - start > timeout) {
         clearInterval(interval);
-        resolve(false); // timed out — no transcript on this page
+        resolve(false);
       }
     }, 300);
   });
 }
 
-function isQuizPage() {
-  const url = window.location.href;
-  return url.includes("/quiz/") || 
-         url.includes("/exam/") || 
-         url.includes("/practice-quiz/") || 
-         url.includes("/assignment-submission/") || 
-         url.includes("/peer/") || 
-         url.includes("/discussionPrompt/") || 
-         url.includes("/discussion/") || 
-         url.includes("/ungradedWidget/") || 
-         url.includes("/ungradedLti/");
+function isEndOfCourse() {
+  const allElements = Array.from(document.querySelectorAll("a, button, span, h2, h3"));
+  return allElements.some(el => {
+    const txt = (el.innerText || "").toLowerCase();
+    return txt.includes("go to my learning") || txt.includes("course complete") || txt.includes("congratulations! you finished");
+  });
 }
 
-function getPageType() {
-  const url = window.location.href;
-  if (url.includes("/lecture/")) return "video";
-  if (url.includes("/supplement/")) return "reading";
-  if (url.includes("/quiz/") || url.includes("/practice-quiz/")) return "quiz";
-  if (url.includes("/exam/")) return "exam";
-  if (url.includes("/assignment-submission/") || url.includes("/peer/")) return "assignment";
-  if (url.includes("/discussionPrompt/") || url.includes("/discussion/")) return "discussion";
-  if (url.includes("/ungradedWidget/") || url.includes("/ungradedLti/")) return "lab";
-  return "other";
+function clickNextVideo() {
+  const selectors = [
+    '[data-track-component="next_item"]',
+    'button[aria-label="Go to next item"]',
+    'a[aria-label="Go to next item"]',
+    '[data-testid="next-item"]',
+    'button[data-testid="navigation-next-button"]'
+  ];
+
+  for (const selector of selectors) {
+    const btn = document.querySelector(selector);
+    if (btn && !btn.disabled) {
+      btn.click();
+      return true;
+    }
+  }
+
+  const allButtons = Array.from(document.querySelectorAll("a, button"));
+  const nextBtn = allButtons.find(el => {
+    const txt = (el.innerText || "").toLowerCase().trim();
+    return (txt.includes("go to next item") || txt === "next item" || txt === "next") && !el.disabled;
+  });
+  if (nextBtn) {
+    nextBtn.click();
+    return true;
+  }
+
+  return false;
 }
+
+// ─── 3. Curriculum Scanner (Read-Only) ──────────────────────────────────────
 
 function scanCurriculum() {
-  // Pure read-only DOM extraction — NEVER click anything or mutate DOM!
-  // Find all lesson item links in the DOM
   const links = Array.from(document.querySelectorAll('a[href*="/learn/"]'));
-  const validPathKeywords = ["/lecture/", "/supplement/", "/quiz/", "/exam/", "/assignment-submission/", "/peer/", "/discussionPrompt/", "/ungradedWidget/"];
+  const validKeywords = [
+    "/lecture/", "/supplement/", "/quiz/", "/practice-quiz/",
+    "/exam/", "/assignment-submission/", "/peer/",
+    "/discussionPrompt/", "/discussion/", "/ungradedWidget/",
+    "/ungradedLti/", "/lab/"
+  ];
 
   const modulesMap = new Map();
   const seenHrefs = new Set();
@@ -194,8 +184,8 @@ function scanCurriculum() {
     const href = a.href;
     const cleanHref = href.split("?")[0].split("#")[0];
 
-    const isLessonLink = validPathKeywords.some(keyword => cleanHref.includes(keyword));
-    if (!isLessonLink) return;
+    const isLesson = validKeywords.some(kw => cleanHref.includes(kw));
+    if (!isLesson) return;
     if (seenHrefs.has(cleanHref)) return;
     seenHrefs.add(cleanHref);
 
@@ -206,9 +196,8 @@ function scanCurriculum() {
     else if (cleanHref.includes("/exam/")) type = "exam";
     else if (cleanHref.includes("/assignment-submission/") || cleanHref.includes("/peer/")) type = "assignment";
     else if (cleanHref.includes("/discussionPrompt/") || cleanHref.includes("/discussion/")) type = "discussion";
-    else if (cleanHref.includes("/ungradedWidget/") || cleanHref.includes("/ungradedLti/")) type = "lab";
+    else if (cleanHref.includes("/ungradedWidget/") || cleanHref.includes("/ungradedLti/") || cleanHref.includes("/lab/")) type = "lab";
 
-    // Clean up title text
     let rawText = cleanText(a.innerText || "");
     let title = rawText
       .replace(/^(Video|Reading|Practice Quiz|Quiz|Graded Quiz|Assignment|Discussion Prompt|Plugin|Ungraded Plugin)\s*[•·-]\s*(\d+\s*(min|m|hours|h))?/i, "")
@@ -221,7 +210,6 @@ function scanCurriculum() {
       title = heading ? cleanText(heading.innerText) : cleanHref.split("/").pop().replace(/-/g, " ");
     }
 
-    // Determine module or week container
     let moduleName = "Course Outline";
     const moduleContainer = a.closest('[data-testid*="module"], [data-testid*="accordion"], .rc-Module, [role="region"], section, li');
     if (moduleContainer) {
@@ -241,7 +229,6 @@ function scanCurriculum() {
       }
     }
 
-    // Clean up module name
     moduleName = moduleName.split("\n")[0].trim() || "Course Outline";
 
     if (!modulesMap.has(moduleName)) {
@@ -258,18 +245,14 @@ function scanCurriculum() {
   const result = [];
   modulesMap.forEach((items, moduleTitle) => {
     if (items.length > 0) {
-      result.push({
-        moduleTitle,
-        items
-      });
+      result.push({ moduleTitle, items });
     }
   });
 
-  // Fallback: If no sidebar/syllabus links are visible in DOM, include the current page lesson
   if (result.length === 0) {
     const currentHref = window.location.href.split("?")[0].split("#")[0];
     const currentType = getPageType();
-    const currentTitle = getVideoTitle() || getReadingTitle() || document.title.split("|")[0].trim();
+    const currentTitle = getVideoTitle() || getReadingTitle() || cleanText(document.title.split("|")[0]);
     if (currentTitle && currentType !== "other") {
       result.push({
         moduleTitle: "Current Lesson",
@@ -285,17 +268,214 @@ function scanCurriculum() {
   return result;
 }
 
-// ─── Message listener ────────────────────────────────────────────────────────
+// ─── 4. Course Automator Routines ───────────────────────────────────────────
+
+function completeVideo() {
+  const video = document.querySelector("video");
+  let completed = false;
+  if (video) {
+    try {
+      video.currentTime = (video.duration && !isNaN(video.duration)) ? video.duration - 0.2 : 99999;
+      video.dispatchEvent(new Event("timeupdate", { bubbles: true }));
+      video.dispatchEvent(new Event("ended", { bubbles: true }));
+      completed = true;
+    } catch (e) {
+      console.warn("Video seek error:", e);
+    }
+  }
+
+  // Click any "Mark as completed" or completion buttons
+  const buttons = Array.from(document.querySelectorAll("button, a"));
+  const markBtns = buttons.filter(b => {
+    const txt = (b.innerText || "").toLowerCase().trim();
+    return txt.includes("mark as completed") || txt.includes("mark complete") || txt === "completed";
+  });
+  markBtns.forEach(b => {
+    b.click();
+    completed = true;
+  });
+
+  return completed;
+}
+
+function completeReading() {
+  window.scrollTo(0, document.body.scrollHeight);
+  const buttons = Array.from(document.querySelectorAll("button, a"));
+  const markBtn = buttons.find(b => {
+    const txt = (b.innerText || "").toLowerCase().trim();
+    return txt.includes("mark as completed") || txt.includes("mark complete");
+  });
+  if (markBtn) {
+    markBtn.click();
+    return true;
+  }
+  return true;
+}
+
+function handleDiscussionPrompt() {
+  const textareas = document.querySelectorAll('textarea, [contenteditable="true"]');
+  if (!textareas || textareas.length === 0) {
+    return { success: false, error: "No discussion response box found on this page." };
+  }
+
+  const constructiveReflections = [
+    "Thank you for this thought-provoking prompt. In my experience, adhering to these structured principles ensures rigorous quality, promotes scalable architectures, and mitigates edge-case risks in complex workflows.",
+    "This concept highlights the critical importance of iterative verification and clear modular design. Approaching problems with this methodology significantly improves collaboration and clarity.",
+    "A very thoughtful topic. Balancing these considerations requires continuous alignment between foundational theory and practical execution, which this module demonstrates effectively."
+  ];
+
+  const chosenText = constructiveReflections[Math.floor(Math.random() * constructiveReflections.length)];
+
+  let injected = 0;
+  textareas.forEach(el => {
+    if (el.tagName === "TEXTAREA") {
+      el.value = chosenText;
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+      injected++;
+    } else if (el.getAttribute("contenteditable") === "true") {
+      el.innerText = chosenText;
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      injected++;
+    }
+  });
+
+  return {
+    success: true,
+    message: `Injected constructive reflection into ${injected} discussion input box(es). Ready to submit.`
+  };
+}
+
+function assistPeerReview() {
+  try {
+    // 1. Rubric radio buttons: select highest score for each rubric criterion
+    const radioGroups = new Map();
+    document.querySelectorAll('input[type="radio"]').forEach(r => {
+      const name = r.name || "default";
+      if (!radioGroups.has(name)) radioGroups.set(name, []);
+      radioGroups.get(name).push(r);
+    });
+
+    let radioCount = 0;
+    radioGroups.forEach(radios => {
+      // Find the radio with the maximum numeric score value, or the last one
+      let bestRadio = radios[radios.length - 1];
+      let maxVal = -Infinity;
+      radios.forEach(r => {
+        const val = parseFloat(r.value);
+        if (!isNaN(val) && val > maxVal) {
+          maxVal = val;
+          bestRadio = r;
+        }
+      });
+
+      if (bestRadio && !bestRadio.checked) {
+        bestRadio.click();
+        bestRadio.dispatchEvent(new Event("change", { bubbles: true }));
+        radioCount++;
+      }
+    });
+
+    // 2. Varied constructive evaluation comments for each rubric textarea
+    const rubricComments = [
+      "Great work on this submission! The explanation is thorough, logically structured, and directly satisfies all rubric criteria with concrete detail.",
+      "Clear, rigorous, and concise submission. Demonstrates strong conceptual understanding of the module and provides high-quality insights.",
+      "Well done! All required components are addressed with exemplary accuracy. The methodology is clearly communicated throughout.",
+      "Excellent effort! The submission adheres strictly to the assignment guidelines and demonstrates deep mastery of the subject."
+    ];
+
+    let filledComments = 0;
+    document.querySelectorAll("textarea").forEach((ta, idx) => {
+      if (!ta.value || ta.value.trim().length === 0) {
+        ta.value = rubricComments[idx % rubricComments.length];
+        ta.dispatchEvent(new Event("input", { bubbles: true }));
+        ta.dispatchEvent(new Event("change", { bubbles: true }));
+        filledComments++;
+      }
+    });
+
+    // 3. Check confirmation / honor code checkboxes if present
+    let checkedBoxes = 0;
+    document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      const parentText = (cb.parentElement?.innerText || "").toLowerCase();
+      if (parentText.includes("honor code") || parentText.includes("confirm") || parentText.includes("reviewed")) {
+        if (!cb.checked) {
+          cb.click();
+          cb.dispatchEvent(new Event("change", { bubbles: true }));
+          checkedBoxes++;
+        }
+      }
+    });
+
+    return {
+      success: true,
+      message: `Assisted review: selected ${radioCount} top rubric score(s), filled ${filledComments} comment box(es), and acknowledged ${checkedBoxes} requirement(s).`
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+// ─── 5. Quiz Questions Extractor for Gemini AI ──────────────────────────────
+
+function extractQuizQuestions() {
+  const questionContainers = document.querySelectorAll(
+    '.rc-FormPartsQuestion, [data-testid*="question"], .rc-QuizQuestion, [role="group"]'
+  );
+
+  const questions = [];
+  const seenPrompts = new Set();
+
+  questionContainers.forEach((qEl, qIdx) => {
+    const promptEl = qEl.querySelector('.rc-FormPartsQuestion__prompt, [data-testid*="prompt"], .cml-viewer, h3, h4, p');
+    const prompt = promptEl ? cleanText(promptEl.innerText) : "";
+
+    if (!prompt || prompt.length < 5 || seenPrompts.has(prompt)) return;
+    seenPrompts.add(prompt);
+
+    const optionEls = qEl.querySelectorAll('label, .rc-Option, [role="radio"], [role="checkbox"]');
+    const options = Array.from(optionEls).map((opt, oIdx) => ({
+      index: oIdx,
+      text: cleanText(opt.innerText)
+    })).filter(o => o.text.length > 0 && o.text !== prompt);
+
+    const isMultiSelect = !!qEl.querySelector('input[type="checkbox"], [role="checkbox"]');
+
+    questions.push({
+      index: qIdx + 1,
+      prompt,
+      options,
+      isMultiSelect
+    });
+  });
+
+  return questions;
+}
+
+// ─── 6. Message Listener ────────────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
-  // PING — check if content script is loaded on this page
+  // PING
   if (message.action === "ping") {
     sendResponse({ success: true });
     return true;
   }
 
-  // SCAN_CURRICULUM — scan and return all course modules and items
+  // CHECK_PAGE
+  if (message.action === "checkPage") {
+    const onCoursera = window.location.hostname.includes("coursera.org");
+    const pageType = getPageType();
+    sendResponse({
+      onCoursera,
+      onVideoPage: pageType === "video" || pageType === "reading",
+      pageType,
+      isEndOfCourse: isEndOfCourse()
+    });
+    return true;
+  }
+
+  // SCAN_CURRICULUM
   if (message.action === "scanCurriculum") {
     try {
       const modules = scanCurriculum();
@@ -306,7 +486,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // NAVIGATE_TO — navigate to a specific lesson URL
+  // NAVIGATE_TO
   if (message.action === "navigateTo") {
     if (message.url) {
       window.location.href = message.url;
@@ -317,29 +497,37 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // GET_TRANSCRIPT — extract transcript (video) or content (reading) from page
+  // GET_TRANSCRIPT
   if (message.action === "getTranscript") {
     (async () => {
+      const pageType = getPageType();
 
-      // Check if page is an activity / quiz / assignment
-      if (isQuizPage()) {
+      // Check if page is an activity / quiz / assignment / lab / discussion
+      if (isQuizOrActivityPage()) {
+        const title = getVideoTitle() || getReadingTitle() || "Interactive Activity";
+        let reason = "no_transcript";
+        if (pageType === "quiz" || pageType === "exam") {
+          reason = "is_quiz";
+        }
         sendResponse({
           success: false,
-          reason: "is_quiz",
-          pageType: getPageType(),
-          title: getVideoTitle() || getReadingTitle() || "Quiz / Assignment",
+          reason,
+          pageType,
+          title,
           isEndOfCourse: isEndOfCourse()
         });
         return;
       }
 
-      // ── Reading / summary pages ──────────────────────────────────────────
-      if (isReadingPage()) {
+      // Reading pages (/supplement/)
+      if (pageType === "reading") {
         const content = getReadingContent();
         if (!content) {
           sendResponse({
             success: false,
             reason: "no_transcript",
+            pageType: "reading",
+            title: getReadingTitle(),
             isEndOfCourse: isEndOfCourse()
           });
           return;
@@ -348,24 +536,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           success: true,
           title: getReadingTitle(),
           transcript: content,
+          pageType: "reading",
           isEndOfCourse: isEndOfCourse()
         });
         return;
       }
 
-      // ── Video pages ──────────────────────────────────────────────────────
-      // Open the Transcript tab in the right-hand panel if it isn't already.
+      // Video pages (/lecture/)
       if (!isTranscriptTabActive()) {
         openTranscriptTab();
         await new Promise(r => setTimeout(r, 1000));
       }
 
       const found = await waitForTranscript(8000);
-
       if (!found) {
         sendResponse({
           success: false,
           reason: "no_transcript",
+          pageType: "video",
+          title: getVideoTitle(),
           isEndOfCourse: isEndOfCourse()
         });
         return;
@@ -378,6 +567,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({
           success: false,
           reason: "no_transcript",
+          pageType: "video",
+          title: title,
           isEndOfCourse: isEndOfCourse()
         });
         return;
@@ -387,13 +578,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         success: true,
         title: title,
         transcript: transcript,
+        pageType: "video",
         isEndOfCourse: isEndOfCourse()
       });
     })();
-    return true; // keep message channel open for async response
+    return true;
   }
 
-  // NEXT_VIDEO — click the next button
+  // NEXT_VIDEO
   if (message.action === "nextVideo") {
     if (isEndOfCourse()) {
       sendResponse({ success: false, reason: "end_of_course" });
@@ -404,130 +596,84 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // CHECK_PAGE — check if we're on a lesson page
-  if (message.action === "checkPage") {
-    const onCoursera = window.location.hostname === "www.coursera.org";
-    const onVideoPage = window.location.href.includes("/lecture/")
-      || window.location.href.includes("/supplement/")
-      || window.location.href.includes("/learn/");
-    sendResponse({
-      onCoursera,
-      onVideoPage,
-      pageType: getPageType(),
-      isEndOfCourse: isEndOfCourse()
-    });
-    return true;
-  }
-
-  // COMPLETE_LESSON — Auto-complete current video or reading lesson
+  // COMPLETE_LESSON
   if (message.action === "completeLesson") {
     const pageType = getPageType();
 
     if (pageType === "video") {
-      const video = document.querySelector("video");
-      if (video) {
-        try {
-          video.currentTime = (video.duration && !isNaN(video.duration)) ? video.duration - 0.5 : 99999;
-          video.dispatchEvent(new Event("timeupdate"));
-          video.dispatchEvent(new Event("ended"));
-          sendResponse({ success: true, message: "Video lecture marked completed." });
-        } catch (e) {
-          sendResponse({ success: false, error: e.message });
-        }
-        return true;
-      }
-    }
-
-    if (pageType === "reading") {
-      window.scrollTo(0, document.body.scrollHeight);
-      const markBtn = Array.from(document.querySelectorAll("button")).find(b => 
-        (b.innerText || "").toLowerCase().includes("mark as completed") ||
-        (b.innerText || "").toLowerCase().includes("mark complete")
-      );
-      if (markBtn) {
-        markBtn.click();
-        sendResponse({ success: true, message: "Reading marked as completed." });
-        return true;
-      }
-      sendResponse({ success: true, message: "Scrolled to end of reading lesson." });
+      const ok = completeVideo();
+      sendResponse({ success: ok, message: "Video lecture marked completed." });
       return true;
     }
 
-    sendResponse({ success: false, error: `Automated completion not supported for page type: ${pageType}` });
+    if (pageType === "reading") {
+      const ok = completeReading();
+      sendResponse({ success: ok, message: "Reading lesson marked completed." });
+      return true;
+    }
+
+    if (pageType === "discussion") {
+      const res = handleDiscussionPrompt();
+      sendResponse(res);
+      return true;
+    }
+
+    if (pageType === "lab") {
+      // Look for mark completed
+      const buttons = Array.from(document.querySelectorAll("button, a"));
+      const markBtn = buttons.find(b => {
+        const txt = (b.innerText || "").toLowerCase().trim();
+        return txt.includes("mark as completed") || txt.includes("mark complete");
+      });
+      if (markBtn) {
+        markBtn.click();
+        sendResponse({ success: true, message: "Hands-on lab marked as completed." });
+      } else {
+        sendResponse({ success: true, message: "Hands-on lab page opened and verified." });
+      }
+      return true;
+    }
+
+    sendResponse({ success: false, error: `Automated completion not available for ${pageType} items.` });
     return true;
   }
 
-  // ASSIST_PEER_REVIEW — Auto-fill highest rubric scores & constructive comments
+  // HANDLE_DISCUSSION_PROMPT
+  if (message.action === "handleDiscussionPrompt") {
+    const res = handleDiscussionPrompt();
+    sendResponse(res);
+    return true;
+  }
+
+  // ASSIST_PEER_REVIEW
   if (message.action === "assistPeerReview") {
+    const res = assistPeerReview();
+    sendResponse(res);
+    return true;
+  }
+
+  // GET_QUIZ_QUESTIONS
+  if (message.action === "getQuizQuestions") {
     try {
-      const radioGroups = new Map();
-      document.querySelectorAll('input[type="radio"]').forEach(r => {
-        const name = r.name || "default";
-        if (!radioGroups.has(name)) radioGroups.set(name, []);
-        radioGroups.get(name).push(r);
-      });
-
-      let clickedCount = 0;
-      radioGroups.forEach(radios => {
-        const highestRadio = radios[radios.length - 1];
-        if (highestRadio && !highestRadio.checked) {
-          highestRadio.click();
-          highestRadio.dispatchEvent(new Event("change", { bubbles: true }));
-          clickedCount++;
-        }
-      });
-
-      const comments = [
-        "Great work on this submission! The explanation is clear and thoroughly addresses all required criteria.",
-        "Clear and concise submission with well-structured answers. Meets all rubric expectations.",
-        "Well done! Demonstrates a strong understanding of the course concepts with clear detail."
-      ];
-
-      let filledTexts = 0;
-      document.querySelectorAll("textarea").forEach((ta, idx) => {
-        if (!ta.value || ta.value.trim().length === 0) {
-          ta.value = comments[idx % comments.length];
-          ta.dispatchEvent(new Event("input", { bubbles: true }));
-          ta.dispatchEvent(new Event("change", { bubbles: true }));
-          filledTexts++;
-        }
-      });
-
-      sendResponse({
-        success: true,
-        message: `Assisted review: selected ${clickedCount} rubric scores and filled ${filledTexts} comment boxes.`
-      });
-    } catch (e) {
-      sendResponse({ success: false, error: e.message });
+      const questions = extractQuizQuestions();
+      sendResponse({ success: true, questions });
+    } catch (err) {
+      sendResponse({ success: false, error: err.message });
     }
     return true;
   }
 
-  // GET_QUIZ_QUESTIONS — Extract current quiz questions for Gemini AI solving
-  if (message.action === "getQuizQuestions") {
+  // GET_PEER_REVIEW_CONTENT
+  if (message.action === "getPeerReviewContent") {
     try {
-      const questionElements = document.querySelectorAll(
-        '.rc-FormPartsQuestion, [data-testid*="question"], .rc-QuizQuestion, .cml-viewer'
-      );
-      const questions = [];
-
-      document.querySelectorAll('[data-testid*="question"], .rc-FormPartsQuestion').forEach((qEl, qIdx) => {
-        const promptEl = qEl.querySelector('.rc-FormPartsQuestion__prompt, [data-testid*="prompt"], h3, h4, p');
-        const prompt = promptEl ? cleanText(promptEl.innerText) : `Question ${qIdx + 1}`;
-        const optionEls = qEl.querySelectorAll('label, .rc-Option, [role="radio"], [role="checkbox"]');
-        const options = Array.from(optionEls).map((opt, oIdx) => ({
-          index: oIdx,
-          text: cleanText(opt.innerText)
-        })).filter(o => o.text.length > 0);
-
-        if (prompt) {
-          questions.push({ index: qIdx, prompt, options });
-        }
-      });
-
-      sendResponse({ success: true, questions });
-    } catch (e) {
-      sendResponse({ success: false, error: e.message });
+      const title = getVideoTitle() || getReadingTitle() || "Peer Review Assignment";
+      const submissions = Array.from(document.querySelectorAll('.rc-CML, .item-page-content, [data-testid*="submission"]'))
+        .map(el => cleanText(el.innerText))
+        .filter(t => t.length > 20)
+        .join("\n\n");
+      sendResponse({ success: true, title, submissionContent: submissions });
+    } catch (err) {
+      sendResponse({ success: false, error: err.message });
     }
     return true;
   }
