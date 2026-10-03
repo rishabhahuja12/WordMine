@@ -157,6 +157,130 @@ function waitForTranscript(timeout = 8000) {
   });
 }
 
+function isQuizPage() {
+  const url = window.location.href;
+  return url.includes("/quiz/") || 
+         url.includes("/exam/") || 
+         url.includes("/practice-quiz/") || 
+         url.includes("/assignment-submission/") || 
+         url.includes("/peer/") || 
+         url.includes("/discussionPrompt/") || 
+         url.includes("/discussion/") || 
+         url.includes("/ungradedWidget/") || 
+         url.includes("/ungradedLti/");
+}
+
+function getPageType() {
+  const url = window.location.href;
+  if (url.includes("/lecture/")) return "video";
+  if (url.includes("/supplement/")) return "reading";
+  if (url.includes("/quiz/") || url.includes("/practice-quiz/")) return "quiz";
+  if (url.includes("/exam/")) return "exam";
+  if (url.includes("/assignment-submission/") || url.includes("/peer/")) return "assignment";
+  if (url.includes("/discussionPrompt/") || url.includes("/discussion/")) return "discussion";
+  if (url.includes("/ungradedWidget/") || url.includes("/ungradedLti/")) return "lab";
+  return "other";
+}
+
+async function scanCurriculum() {
+  // If sidebar / navigation drawer is present but collapsed, attempt to open it
+  const drawerBtn = document.querySelector(
+    '[data-testid="item-sidebar-toggle"], button[aria-label*="Course Material" i], button[aria-label*="Navigation menu" i], button[aria-label*="course navigation" i], button[aria-label*="navigation" i]'
+  );
+  if (drawerBtn && drawerBtn.getAttribute("aria-expanded") !== "true") {
+    try {
+      drawerBtn.click();
+      await new Promise(r => setTimeout(r, 600));
+    } catch {
+      // ignore
+    }
+  }
+
+  // Find all lesson item links in the DOM
+  const links = Array.from(document.querySelectorAll('a[href*="/learn/"]'));
+  const validPathKeywords = ["/lecture/", "/supplement/", "/quiz/", "/exam/", "/assignment-submission/", "/peer/", "/discussionPrompt/", "/ungradedWidget/"];
+
+  const modulesMap = new Map();
+  const seenHrefs = new Set();
+
+  links.forEach(a => {
+    const href = a.href;
+    const cleanHref = href.split("?")[0].split("#")[0];
+
+    const isLessonLink = validPathKeywords.some(keyword => cleanHref.includes(keyword));
+    if (!isLessonLink) return;
+    if (seenHrefs.has(cleanHref)) return;
+    seenHrefs.add(cleanHref);
+
+    let type = "other";
+    if (cleanHref.includes("/lecture/")) type = "video";
+    else if (cleanHref.includes("/supplement/")) type = "reading";
+    else if (cleanHref.includes("/quiz/") || cleanHref.includes("/practice-quiz/")) type = "quiz";
+    else if (cleanHref.includes("/exam/")) type = "exam";
+    else if (cleanHref.includes("/assignment-submission/") || cleanHref.includes("/peer/")) type = "assignment";
+    else if (cleanHref.includes("/discussionPrompt/") || cleanHref.includes("/discussion/")) type = "discussion";
+    else if (cleanHref.includes("/ungradedWidget/") || cleanHref.includes("/ungradedLti/")) type = "lab";
+
+    // Clean up title text
+    let rawText = cleanText(a.innerText || "");
+    let title = rawText
+      .replace(/^(Video|Reading|Practice Quiz|Quiz|Graded Quiz|Assignment|Discussion Prompt|Plugin|Ungraded Plugin)\s*[•·-]\s*(\d+\s*(min|m|hours|h))?/i, "")
+      .replace(/^(Video|Reading|Quiz|Assignment|Discussion)\s*/i, "")
+      .replace(/^\d+[\.\)]\s*/, "")
+      .trim();
+
+    if (!title || title.length < 2) {
+      const heading = a.querySelector("h2, h3, h4, span, p");
+      title = heading ? cleanText(heading.innerText) : cleanHref.split("/").pop().replace(/-/g, " ");
+    }
+
+    // Determine module or week container
+    let moduleName = "Course Outline";
+    const moduleContainer = a.closest('[data-testid*="module"], [data-testid*="accordion"], .rc-Module, [role="region"], section, li');
+    if (moduleContainer) {
+      const headerEl = moduleContainer.querySelector('h2, h3, h4, [data-testid*="title"], [data-testid*="header"]');
+      if (headerEl) {
+        moduleName = cleanText(headerEl.innerText) || moduleName;
+      }
+    } else {
+      let curr = a.parentElement;
+      for (let i = 0; i < 5 && curr; i++) {
+        const prevH = curr.querySelector('h2, h3, h4');
+        if (prevH && prevH !== a) {
+          moduleName = cleanText(prevH.innerText);
+          break;
+        }
+        curr = curr.parentElement;
+      }
+    }
+
+    // Clean up module name
+    moduleName = moduleName.split("\n")[0].trim() || "Course Outline";
+
+    if (!modulesMap.has(moduleName)) {
+      modulesMap.set(moduleName, []);
+    }
+
+    modulesMap.get(moduleName).push({
+      title: title || "Untitled Lesson",
+      type: type,
+      url: cleanHref
+    });
+  });
+
+  const result = [];
+  modulesMap.forEach((items, moduleTitle) => {
+    if (items.length > 0) {
+      result.push({
+        moduleTitle,
+        items
+      });
+    }
+  });
+
+  return result;
+}
+
 // ─── Message listener ────────────────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -167,9 +291,45 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  // SCAN_CURRICULUM — scan and return all course modules and items
+  if (message.action === "scanCurriculum") {
+    (async () => {
+      try {
+        const modules = await scanCurriculum();
+        sendResponse({ success: true, modules });
+      } catch (err) {
+        sendResponse({ success: false, error: err.message });
+      }
+    })();
+    return true;
+  }
+
+  // NAVIGATE_TO — navigate to a specific lesson URL
+  if (message.action === "navigateTo") {
+    if (message.url) {
+      window.location.href = message.url;
+      sendResponse({ success: true });
+    } else {
+      sendResponse({ success: false, error: "No URL provided" });
+    }
+    return true;
+  }
+
   // GET_TRANSCRIPT — extract transcript (video) or content (reading) from page
   if (message.action === "getTranscript") {
     (async () => {
+
+      // Check if page is an activity / quiz / assignment
+      if (isQuizPage()) {
+        sendResponse({
+          success: false,
+          reason: "is_quiz",
+          pageType: getPageType(),
+          title: getVideoTitle() || getReadingTitle() || "Quiz / Assignment",
+          isEndOfCourse: isEndOfCourse()
+        });
+        return;
+      }
 
       // ── Reading / summary pages ──────────────────────────────────────────
       if (isReadingPage()) {

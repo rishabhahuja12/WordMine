@@ -59,12 +59,31 @@
         </div>
       </section>
 
-      <!-- Step 2: Extraction Mode -->
+      <!-- Step 2: Content Filters & Advance Mode -->
       <section class="neo-card">
         <div class="card-title-row">
           <span class="step-badge">2</span>
-          <h2 class="card-heading">ADVANCE MODE</h2>
+          <h2 class="card-heading">FILTERS &amp; ADVANCE MODE</h2>
         </div>
+
+        <!-- Quick Activity Exclusion / Inclusion Filters -->
+        <div class="filter-chips-row">
+          <label class="filter-chip">
+            <input type="checkbox" id="filterVideos" checked />
+            <span class="chip-box">🎥 Videos</span>
+          </label>
+          <label class="filter-chip">
+            <input type="checkbox" id="filterReadings" checked />
+            <span class="chip-box">📖 Readings</span>
+          </label>
+          <label class="filter-chip chip-highlight">
+            <input type="checkbox" id="skipQuizzes" checked />
+            <span class="chip-box">🚫 Skip Quizzes</span>
+          </label>
+        </div>
+
+        <div class="card-divider"></div>
+
         <div class="mode-row">
           <div class="mode-info">
             <span class="mode-title">Auto-Advance</span>
@@ -79,7 +98,7 @@
         </div>
       </section>
 
-      <!-- Action Buttons -->
+      <!-- Main Action Buttons -->
       <div class="button-stack">
         <button class="neo-btn btn-primary" id="extractBtn">
           <span class="btn-icon">⛏</span>
@@ -92,6 +111,45 @@
           ⏹ STOP MINING
         </button>
       </div>
+
+      <!-- Curriculum Selector Accordion / Drawer -->
+      <section class="neo-card curriculum-card">
+        <div class="curriculum-toggle-bar">
+          <div class="curriculum-info">
+            <span class="curriculum-icon">📚</span>
+            <div>
+              <h2 class="card-heading">MODULE &amp; LESSON SELECTOR</h2>
+              <p class="curriculum-sub">Select specific modules or skip quizzes</p>
+            </div>
+          </div>
+          <button class="neo-btn-sm" id="scanCurriculumBtn">
+            🔍 SCAN
+          </button>
+        </div>
+
+        <div class="curriculum-body" id="curriculumDrawer" style="display:none;">
+          <!-- Quick Filter Presets -->
+          <div class="curriculum-controls">
+            <span class="curriculum-count" id="curriculumStats">0 selected</span>
+            <div class="curriculum-filter-pills">
+              <button class="pill-btn" id="btnFilterAll">All</button>
+              <button class="pill-btn" id="btnFilterVideos">Videos</button>
+              <button class="pill-btn" id="btnFilterNoQuizzes">No Quizzes</button>
+              <button class="pill-btn" id="btnFilterNone">None</button>
+            </div>
+          </div>
+
+          <!-- Dynamic Module & Item Checklist Tree -->
+          <div class="curriculum-scroll-box" id="curriculumList">
+            <div class="empty-curriculum-hint">Click <b>SCAN</b> above to load all course modules and lessons.</div>
+          </div>
+
+          <!-- Mine Selected Button -->
+          <button class="neo-btn btn-mine-selected" id="mineSelectedBtn" style="display:none;">
+            ⛏ MINE SELECTED (<span id="selectedCountBadge">0</span>)
+          </button>
+        </div>
+      </section>
 
       <!-- Mining Feed / Log Section -->
       <section class="neo-card feed-card" id="logSection" style="display:none;">

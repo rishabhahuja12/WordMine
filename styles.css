@@ -220,6 +220,59 @@ body {
   transform: translate(-1px, -1px);
 }
 
+/* ─── Filter Chips (Videos, Readings, Quizzes) ────────────────────────────── */
+
+.filter-chips-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.filter-chip {
+  flex: 1;
+}
+
+.filter-chip input {
+  display: none;
+}
+
+.chip-box {
+  display: block;
+  text-align: center;
+  padding: 6px 4px;
+  background: #FFFFFF;
+  border: 2px solid var(--black);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--black);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.1s ease;
+}
+
+.filter-chip:hover .chip-box {
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-md);
+}
+
+.filter-chip input:checked + .chip-box {
+  background: var(--yellow-main);
+  box-shadow: var(--shadow-sm);
+}
+
+.chip-highlight input:checked + .chip-box {
+  background: var(--coral-main);
+}
+
+.card-divider {
+  height: 2px;
+  background: #E5E7EB;
+  margin: 10px 0;
+  border-bottom: 1.5px solid var(--black);
+}
+
 /* ─── Advance Mode ─────────────────────────────────────────────────────────── */
 
 .mode-row {
@@ -365,6 +418,243 @@ body {
   background: var(--coral-main);
   color: var(--black);
   margin-top: 10px;
+}
+
+/* ─── Curriculum Explorer ──────────────────────────────────────────────────── */
+
+.curriculum-card {
+  background: #FFFFFF;
+}
+
+.curriculum-toggle-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.curriculum-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.curriculum-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.curriculum-sub {
+  font-size: 11px;
+  font-weight: 600;
+  color: #4B5563;
+}
+
+.neo-btn-sm {
+  padding: 6px 12px;
+  background: var(--cyan-main);
+  border: 2px solid var(--black);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--black);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.neo-btn-sm:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-md);
+}
+
+.neo-btn-sm:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 #000;
+}
+
+.curriculum-body {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 2px solid var(--black);
+}
+
+.curriculum-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.curriculum-count {
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.curriculum-filter-pills {
+  display: flex;
+  gap: 4px;
+}
+
+.pill-btn {
+  background: #FFFFFF;
+  border: 1.5px solid var(--black);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 1px 1px 0 #000;
+  transition: all 0.1s ease;
+}
+
+.pill-btn:hover {
+  background: var(--yellow-main);
+}
+
+.pill-btn:active {
+  transform: translate(1px, 1px);
+  box-shadow: none;
+}
+
+.curriculum-scroll-box {
+  max-height: 220px;
+  overflow-y: auto;
+  border: 2px solid var(--black);
+  border-radius: 6px;
+  background: #FAF9F6;
+  padding: 6px;
+}
+
+.curriculum-scroll-box::-webkit-scrollbar {
+  width: 6px;
+}
+
+.curriculum-scroll-box::-webkit-scrollbar-track {
+  background: #E5E7EB;
+  border-left: 1px solid var(--black);
+}
+
+.curriculum-scroll-box::-webkit-scrollbar-thumb {
+  background: var(--black);
+}
+
+.empty-curriculum-hint {
+  text-align: center;
+  padding: 20px 10px;
+  font-size: 11px;
+  color: #6B7280;
+}
+
+.module-group {
+  background: #FFFFFF;
+  border: 2px solid var(--black);
+  border-radius: 6px;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.module-header-row {
+  background: var(--yellow-main);
+  border-bottom: 1.5px solid var(--black);
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.module-header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+  flex: 1;
+}
+
+.module-header-left input[type="checkbox"] {
+  accent-color: var(--black);
+  cursor: pointer;
+}
+
+.module-count-badge {
+  font-size: 9px;
+  font-weight: 900;
+  background: #FFFFFF;
+  border: 1px solid var(--black);
+  border-radius: 3px;
+  padding: 1px 4px;
+}
+
+.lesson-items-list {
+  padding: 2px 4px;
+}
+
+.lesson-item-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 4px;
+  border-bottom: 1px solid #F3F4F6;
+  font-size: 11px;
+}
+
+.lesson-item-row:last-child {
+  border-bottom: none;
+}
+
+.lesson-item-row input[type="checkbox"] {
+  accent-color: var(--black);
+  cursor: pointer;
+}
+
+.lesson-type-badge {
+  font-size: 9px;
+  font-weight: 900;
+  padding: 1px 4px;
+  border: 1px solid var(--black);
+  border-radius: 3px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.badge-video {
+  background: var(--cyan-main);
+}
+
+.badge-reading {
+  background: var(--mint-main);
+}
+
+.badge-quiz, .badge-exam {
+  background: var(--coral-main);
+}
+
+.badge-assignment {
+  background: var(--purple-main);
+}
+
+.badge-discussion, .badge-lab {
+  background: #FED7AA;
+}
+
+.lesson-title-text {
+  font-weight: 700;
+  color: var(--black);
+  flex: 1;
+  word-break: break-word;
+}
+
+.btn-mine-selected {
+  background: var(--yellow-main);
+  margin-top: 10px;
+}
+
+.btn-mine-selected:hover:not(:disabled) {
+  background: var(--yellow-hover);
 }
 
 /* ─── Mining Feed / Progress Log ───────────────────────────────────────────── */
