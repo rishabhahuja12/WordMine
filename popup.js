@@ -1506,10 +1506,10 @@ if (btnValidateStart) {
       if (typeof hideOnboarding === "function") hideOnboarding();
     } catch (err) {
       const msg = err.message.toLowerCase();
-      if (msg.includes('high demand') || msg.includes('rate limit') || msg.includes('quota') || msg.includes('429') || msg.includes('503')) {
+      if (msg.includes('high demand') || msg.includes('rate limit') || msg.includes('quota') || msg.includes('429') || msg.includes('503') || msg.includes('model') || msg.includes('decommissioned') || msg.includes('access')) {
         await chrome.storage.local.set({ aiProvider: provider, apiKey: key, onboardingDone: true });
         if (typeof hideOnboarding === "function") hideOnboarding();
-        if (typeof updateStatus === "function") updateStatus('warning', 'API is busy, but setup complete.');
+        if (typeof updateStatus === "function") updateStatus('warning', 'Setup complete. Note: Default model busy or unavailable.');
       } else {
         if (typeof showOnboardingError === "function") showOnboardingError(`Validation failed — ${err.message}`);
         else alert(`Validation failed — ${err.message}`);
@@ -1667,11 +1667,11 @@ if (btnSaveSettings) {
       updateStatus('ready', 'Provider updated: ' + provider);
     } catch (err) {
       const msg = err.message.toLowerCase();
-      if (msg.includes('high demand') || msg.includes('rate limit') || msg.includes('quota') || msg.includes('429') || msg.includes('503')) {
+      if (msg.includes('high demand') || msg.includes('rate limit') || msg.includes('quota') || msg.includes('429') || msg.includes('503') || msg.includes('model') || msg.includes('decommissioned') || msg.includes('access')) {
         await setStorage({ aiProvider: provider, apiKey: key, customModel: customModel });
         updateProviderBadge(provider);
         if (settingsPanel) settingsPanel.style.display = 'none';
-        updateStatus('warning', 'Key saved, but API is currently busy.');
+        updateStatus('warning', 'Key saved. Note: Default API model may be busy or unavailable.');
       } else {
         if (settingsError) { settingsError.textContent = 'Validation failed — ' + err.message; settingsError.style.display = 'block'; }
       }
