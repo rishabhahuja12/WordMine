@@ -1232,16 +1232,18 @@ async function callAIWithKey(provider, apiKey, prompt, customModel = null, image
           }
         } else {
           url = baseUrl;
-          let contentArray = [];
-          if (imageDataUrl) {
-            contentArray = [
+          let contentData;
+          // Only OpenAI explicitly supports the array format generically here.
+          // Groq, Mistral, etc. strictly require a string and will throw if sent an array.
+          if (imageDataUrl && provider === "openai") {
+            contentData = [
               { type: "text", text: prompt },
               { type: "image_url", image_url: { url: imageDataUrl } }
             ];
           } else {
-            contentArray = prompt;
+            contentData = prompt;
           }
-          body = { model: model, messages: [{ role: "user", content: contentArray }] };
+          body = { model: model, messages: [{ role: "user", content: contentData }] };
         }
 
         const response = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
