@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>WordMine</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <div class="app-container">
+
+    <!-- Neo-Brutalist Header -->
+    <header class="header">
+      <div class="header-brand">
+        <div class="logo-box">
+          <img src="icons/icon48.png" alt="WordMine" class="logo" />
+        </div>
+        <div class="header-info">
+          <div class="title-row">
+            <h1 class="brand-title">WORDMINE</h1>
+            <span class="badge-free">✦ UNLIMITED</span>
+          </div>
+          <p class="tagline">Coursera Transcript Miner</p>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+
+      <!-- Step 1: Output Format -->
+      <section class="brutalist-card card-format">
+        <div class="card-header">
+          <span class="step-num">01</span>
+          <span class="section-label">OUTPUT FORMAT</span>
+        </div>
+        <div class="format-group">
+          <label class="format-chip chip-docx">
+            <input type="radio" name="format" value="docx" checked />
+            <span class="chip-content">
+              <span class="chip-icon">📄</span>
+              <span class="chip-name">DOCX</span>
+            </span>
+          </label>
+          <label class="format-chip chip-pdf">
+            <input type="radio" name="format" value="pdf" />
+            <span class="chip-content">
+              <span class="chip-icon">📑</span>
+              <span class="chip-name">PDF</span>
+            </span>
+          </label>
+          <label class="format-chip chip-txt">
+            <input type="radio" name="format" value="txt" />
+            <span class="chip-content">
+              <span class="chip-icon">📝</span>
+              <span class="chip-name">TXT</span>
+            </span>
+          </label>
+        </div>
+      </section>
+
+      <!-- Step 2: Advance Mode -->
+      <section class="brutalist-card card-mode">
+        <div class="card-header">
+          <span class="step-num">02</span>
+          <span class="section-label">ADVANCE MODE</span>
+        </div>
+        <div class="mode-control-row">
+          <span class="mode-label-text">Operation:</span>
+          <div class="mode-switch-wrapper">
+            <span class="mode-type-label manual-label">Manual</span>
+            <label class="brutalist-switch">
+              <input type="checkbox" id="autoToggle" />
+              <span class="switch-slider"></span>
+            </label>
+            <span class="mode-type-label auto-label">Auto</span>
+          </div>
+        </div>
+        <div class="mode-hint-box" id="modeHint">
+          Click "Next Lesson" yourself after each extraction.
+        </div>
+      </section>
+
+      <!-- Action Buttons -->
+      <div class="actions-group">
+        <button class="btn-brutalist btn-primary" id="extractBtn">
+          <span class="btn-icon">⛏</span>
+          <span class="btn-label">Mine This Lesson</span>
+        </button>
+        <button class="btn-brutalist btn-secondary" id="nextBtn" style="display:none;">
+          Next Lesson →
+        </button>
+        <button class="btn-brutalist btn-danger" id="stopBtn" style="display:none;">
+          ⏹ Stop Mining
+        </button>
+      </div>
+
+      <!-- Mining Feed (Progress Log) -->
+      <section class="brutalist-card card-feed" id="logSection" style="display:none;">
+        <div class="feed-header">
+          <div class="feed-title">
+            <span class="feed-pulse-dot"></span>
+            <span>MINING FEED</span>
+          </div>
+          <span class="feed-chip">LIVE</span>
+        </div>
+        <div class="log-box" id="logBox"></div>
+        <div class="feed-actions">
+          <button class="btn-brutalist btn-download" id="downloadBtn" style="display:none;">
+            ⬇ DOWNLOAD ALL (.ZIP)
+          </button>
+          <button class="btn-brutalist btn-clear" id="clearBtn" style="display:none;">
+            ✕ Clear Feed
+          </button>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <span>WordMine v2.0 • 100% Free &amp; Open-Source</span>
+    </footer>
+
+  </div>
+
+  <script src="jszip.min.js"></script>
+  <script src="docx.min.js"></script>
+  <script src="pdfobject.min.js"></script>
+  <script src="html2pdf.min.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

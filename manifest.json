@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "WordMine",
+  "version": "2.0.0",
+  "description": "Effortlessly mine and save Coursera video transcripts as DOCX, PDF, or TXT files directly from your browser.",
+
+  "permissions": [
+    "storage"
+  ],
+
+  "host_permissions": [
+    "https://www.coursera.org/*"
+  ],
+
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["https://www.coursera.org/learn/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+
+  "web_accessible_resources": [
+    {
+      "resources": ["jszip.min.js", "docx.min.js", "html2pdf.min.js", "pdfobject.min.js"],
+      "matches": ["https://www.coursera.org/*"]
+    }
+  ]
+}

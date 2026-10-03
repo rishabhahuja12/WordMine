@@ -1,0 +1,4 @@
+.vscode/
+wordmine-*.zip
+*.zip
+*.env

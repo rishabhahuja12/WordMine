@@ -1,0 +1,535 @@
+/* WordMine — Neo-Brutalist Light & Pastel Design System */
+
+:root {
+  --bg-canvas: #FFFDF8;
+  --bg-card: #FFFFFF;
+  --border-black: #121212;
+  
+  /* Curated Neo-Brutalist Pastel Palette */
+  --pastel-yellow: #FEF08A;
+  --pastel-yellow-hover: #FDE047;
+  --pastel-blue: #BAE6FD;
+  --pastel-blue-hover: #7DD3FC;
+  --pastel-mint: #BBF7D0;
+  --pastel-mint-hover: #86EFAC;
+  --pastel-purple: #E9D5FF;
+  --pastel-purple-hover: #D8B4FE;
+  --pastel-pink: #FECDD3;
+  --pastel-pink-hover: #FDA4AF;
+  --pastel-cream: #F8F5EE;
+
+  /* Hard Shadows */
+  --shadow-hard-sm: 2px 2px 0px #121212;
+  --shadow-hard: 3px 3px 0px #121212;
+  --shadow-hard-lg: 4px 4px 0px #121212;
+  --shadow-hover: 5px 5px 0px #121212;
+
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family);
+  font-size: 12px;
+  color: var(--border-black);
+  background: var(--bg-canvas);
+  width: 350px;
+  overflow-x: hidden;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-canvas);
+}
+
+/* ─── Header ───────────────────────────────────────────────────────────────── */
+
+.header {
+  background: var(--pastel-blue);
+  border-bottom: 2.5px solid var(--border-black);
+  padding: 12px 14px;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-box {
+  width: 36px;
+  height: 36px;
+  border: 2px solid var(--border-black);
+  border-radius: 8px;
+  background: #FFFFFF;
+  box-shadow: var(--shadow-hard-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.logo {
+  width: 28px;
+  height: 28px;
+  display: block;
+}
+
+.header-info {
+  flex-grow: 1;
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brand-title {
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  line-height: 1.1;
+  color: var(--border-black);
+}
+
+.badge-free {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  background: var(--pastel-yellow);
+  color: var(--border-black);
+  border: 1.5px solid var(--border-black);
+  border-radius: 999px;
+  padding: 2px 7px;
+  box-shadow: 1.5px 1.5px 0px #121212;
+  text-transform: uppercase;
+}
+
+.tagline {
+  font-size: 11px;
+  font-weight: 600;
+  color: #4B5563;
+  margin-top: 1px;
+}
+
+/* ─── Main Content ─────────────────────────────────────────────────────────── */
+
+.main-content {
+  padding: 12px 14px 8px;
+}
+
+/* ─── Brutalist Cards ──────────────────────────────────────────────────────── */
+
+.brutalist-card {
+  background: var(--bg-card);
+  border: 2px solid var(--border-black);
+  border-radius: 8px;
+  box-shadow: var(--shadow-hard);
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 19px;
+  height: 19px;
+  background: var(--pastel-yellow);
+  border: 1.5px solid var(--border-black);
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 900;
+  color: var(--border-black);
+  box-shadow: 1px 1px 0px #121212;
+}
+
+.section-label {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.6px;
+  color: var(--border-black);
+  text-transform: uppercase;
+}
+
+/* ─── Format Selector Chips ────────────────────────────────────────────────── */
+
+.format-group {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+}
+
+.format-chip input {
+  display: none;
+}
+
+.chip-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 4px;
+  border: 2px solid var(--border-black);
+  border-radius: 6px;
+  background: #FFFFFF;
+  box-shadow: var(--shadow-hard-sm);
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.1s ease;
+}
+
+.chip-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.chip-name {
+  font-size: 11px;
+  font-weight: 800;
+  margin-top: 4px;
+  letter-spacing: 0.3px;
+}
+
+.format-chip:hover .chip-content {
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0px #121212;
+}
+
+.format-chip:active .chip-content {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0px #121212;
+}
+
+/* Selected chip colors */
+.chip-docx input:checked + .chip-content {
+  background: var(--pastel-blue);
+  box-shadow: var(--shadow-hard);
+  transform: translate(-1px, -1px);
+}
+
+.chip-pdf input:checked + .chip-content {
+  background: var(--pastel-pink);
+  box-shadow: var(--shadow-hard);
+  transform: translate(-1px, -1px);
+}
+
+.chip-txt input:checked + .chip-content {
+  background: var(--pastel-mint);
+  box-shadow: var(--shadow-hard);
+  transform: translate(-1px, -1px);
+}
+
+/* ─── Mode Switch ──────────────────────────────────────────────────────────── */
+
+.card-mode {
+  background: var(--pastel-cream);
+}
+
+.mode-control-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.mode-label-text {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.mode-switch-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.mode-type-label {
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.brutalist-switch {
+  position: relative;
+  display: inline-block;
+  width: 42px;
+  height: 22px;
+}
+
+.brutalist-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switch-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #E5E7EB;
+  border: 2px solid var(--border-black);
+  border-radius: 999px;
+  box-shadow: var(--shadow-hard-sm);
+  transition: 0.2s;
+}
+
+.switch-slider:before {
+  position: absolute;
+  content: "";
+  height: 12px;
+  width: 12px;
+  left: 3px;
+  bottom: 3px;
+  background-color: var(--border-black);
+  border-radius: 50%;
+  transition: 0.2s;
+}
+
+.brutalist-switch input:checked + .switch-slider {
+  background-color: var(--pastel-purple);
+}
+
+.brutalist-switch input:checked + .switch-slider:before {
+  transform: translateX(20px);
+}
+
+.mode-hint-box {
+  background: #FFFFFF;
+  border: 1.5px dashed var(--border-black);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #374151;
+}
+
+/* ─── Action Buttons ───────────────────────────────────────────────────────── */
+
+.actions-group {
+  margin-bottom: 10px;
+}
+
+.btn-brutalist {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 12px;
+  border: 2.5px solid var(--border-black);
+  border-radius: 8px;
+  font-family: var(--font-family);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: var(--shadow-hard-lg);
+  transition: all 0.12s ease;
+  user-select: none;
+}
+
+.btn-brutalist:hover:not(:disabled) {
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-hover);
+}
+
+.btn-brutalist:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0px #121212;
+}
+
+.btn-brutalist:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-primary {
+  background: var(--pastel-yellow);
+  color: var(--border-black);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--pastel-yellow-hover);
+}
+
+.btn-secondary {
+  background: var(--pastel-blue);
+  color: var(--border-black);
+  margin-top: 8px;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--pastel-blue-hover);
+}
+
+.btn-danger {
+  background: var(--pastel-pink);
+  color: var(--border-black);
+  margin-top: 8px;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--pastel-pink-hover);
+}
+
+/* ─── Mining Feed (Progress Log) ───────────────────────────────────────────── */
+
+.card-feed {
+  background: #FAF5FF;
+  border-color: var(--border-black);
+}
+
+.feed-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.feed-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.feed-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10B981;
+  border: 1px solid var(--border-black);
+  animation: pulse-dot 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.3); opacity: 0.7; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.feed-chip {
+  font-size: 9px;
+  font-weight: 800;
+  background: var(--pastel-mint);
+  border: 1px solid var(--border-black);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.log-box {
+  background: #FFFFFF;
+  border: 2px solid var(--border-black);
+  border-radius: 6px;
+  max-height: 125px;
+  overflow-y: auto;
+  padding: 6px 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+/* Custom retro scrollbar */
+.log-box::-webkit-scrollbar {
+  width: 6px;
+}
+
+.log-box::-webkit-scrollbar-track {
+  background: #F3F4F6;
+  border-left: 1px solid var(--border-black);
+}
+
+.log-box::-webkit-scrollbar-thumb {
+  background: var(--border-black);
+  border-radius: 0;
+}
+
+.log-box div {
+  margin-bottom: 4px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  word-break: break-word;
+}
+
+.log-entry-success {
+  background: var(--pastel-mint);
+  border: 1.5px solid var(--border-black);
+  font-weight: 700;
+  color: var(--border-black);
+}
+
+.log-entry-skip {
+  background: var(--pastel-yellow);
+  border: 1.5px solid var(--border-black);
+  color: var(--border-black);
+}
+
+.log-entry-error {
+  background: var(--pastel-pink);
+  border: 1.5px solid var(--border-black);
+  font-weight: 700;
+  color: var(--border-black);
+}
+
+.feed-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.btn-download {
+  background: var(--pastel-mint);
+  color: var(--border-black);
+}
+
+.btn-download:hover:not(:disabled) {
+  background: var(--pastel-mint-hover);
+}
+
+.btn-clear {
+  background: #FFFFFF;
+  color: var(--border-black);
+  border: 2px solid var(--border-black);
+  box-shadow: var(--shadow-hard-sm);
+  font-size: 11px;
+  padding: 6px 10px;
+}
+
+/* ─── Footer ───────────────────────────────────────────────────────────────── */
+
+.footer {
+  background: var(--pastel-yellow);
+  border-top: 2px solid var(--border-black);
+  padding: 7px 12px;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--border-black);
+}
