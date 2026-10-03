@@ -1350,17 +1350,9 @@ async function captureScreen() {
   });
 }
 
-const universalPromptToggle = document.getElementById("universalPromptToggle");
-const universalToggleLabel = document.getElementById("universalToggleLabel");
-const universalCustomPromptContainer = document.getElementById("universalCustomPromptContainer");
-
-if (universalPromptToggle && universalBtnTitle && universalBtnDesc && universalCustomPromptContainer) {
-  universalPromptToggle.addEventListener("change", (e) => {
-    const isCustom = e.target.checked;
-    universalToggleLabel.textContent = isCustom ? "Custom Prompt" : "Auto-Detect";
-    universalCustomPromptContainer.style.display = isCustom ? "block" : "none";
-    
-    if (isCustom) {
+if (universalCustomPrompt && universalBtnTitle && universalBtnDesc) {
+  universalCustomPrompt.addEventListener("input", () => {
+    if (universalCustomPrompt.value.trim().length > 0) {
       universalBtnTitle.textContent = "Run Custom Prompt";
       universalBtnDesc.textContent = "Sends your specific instruction along with the screen & text context.";
     } else {
@@ -1372,15 +1364,6 @@ if (universalPromptToggle && universalBtnTitle && universalBtnDesc && universalC
 
 if (btnAiSmartAuto) {
   btnAiSmartAuto.addEventListener("click", async () => {
-    
-    const isCustom = universalPromptToggle && universalPromptToggle.checked;
-    const customPromptVal = universalCustomPrompt ? universalCustomPrompt.value.trim() : "";
-    
-    if (isCustom && !customPromptVal) {
-      showAiOutput("Please enter a custom prompt in the text box, or switch back to Auto-Detect mode.", true);
-      return;
-    }
-
     showAiOutput("Gathering page text and visual context...");
     try {
       let text = "";
@@ -1391,9 +1374,11 @@ if (btnAiSmartAuto) {
       }
       
       const imgData = await captureScreen();
+      
+      const customPromptVal = universalCustomPrompt ? universalCustomPrompt.value.trim() : "";
       let finalPrompt = "";
       
-      if (isCustom && customPromptVal) {
+      if (customPromptVal) {
         showAiOutput("Context gathered! Running your custom prompt...");
         finalPrompt = `You are a universal intelligent assistant. The user has provided a specific question or instruction regarding their current webpage.
         

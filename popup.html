@@ -455,19 +455,8 @@
 
           <div class="automator-actions-grid" id="universalAiActions" style="display:none; grid-template-columns: 1fr;">
             
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; background:var(--bg-main); padding:8px 12px; border-radius:6px; border: 1px solid var(--border-subtle);">
-              <span style="font-size:12px; font-weight:600; color:var(--text-main);">AI Mode</span>
-              <div style="display:flex; align-items:center; gap:8px;">
-                <span style="font-size:11px; color:var(--text-muted);" id="universalToggleLabel">Auto-Detect</span>
-                <label class="switch">
-                  <input type="checkbox" id="universalPromptToggle">
-                  <span class="slider"></span>
-                </label>
-              </div>
-            </div>
-
-            <div id="universalCustomPromptContainer" style="display:none; margin-bottom: 8px;">
-               <textarea id="universalCustomPrompt" class="text-input" placeholder="Ask a question about this page or image..." style="width: 100%; min-height: 55px; font-size:12px; resize:vertical; padding: 10px;"></textarea>
+            <div style="margin-bottom: 8px;">
+               <textarea id="universalCustomPrompt" class="text-input" placeholder="Ask a question about this page or image... (Leave blank for Auto-Detect)" style="width: 100%; min-height: 55px; font-size:12px; resize:vertical; padding: 10px;"></textarea>
             </div>
 
             <button class="action-card-btn" id="btnAiSmartAuto" style="border: 2px solid var(--brand-main);">
