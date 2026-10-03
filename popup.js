@@ -1284,15 +1284,28 @@ async function callAIWithKey(provider, apiKey, prompt, customModel = null, image
 }
 
 async function callAI(prompt, imageDataUrl = null) {
-  const data = await getStorage(["aiProvider", "apiKey", "customModel"]);
-  const provider = data.aiProvider || "gemini";
+  const data = await getStorage(["aiProvider", "apiKey", "customModel", "visionProvider", "visionApiKey"]);
+  
+  let provider = data.aiProvider || "gemini";
   let apiKey = data.apiKey || userGeminiApiKey;
+  let customModel = data.customModel || null;
+  
+  if (imageDataUrl && data.visionApiKey) {
+    provider = data.visionProvider || "gemini";
+    apiKey = data.visionApiKey;
+    customModel = null; // Do not use text custom models for vision
+    console.log("Routing to Vision Engine:", provider);
+  }
+
   if (!apiKey && provider === "gemini" && typeof geminiApiKeyInput !== "undefined" && geminiApiKeyInput?.value?.trim()) {
     apiKey = geminiApiKeyInput.value.trim();
   }
-  if (!apiKey) throw new Error("Please enter your API key in Settings/Onboarding.");
   
-  return await callAIWithKey(provider, apiKey, prompt, data.customModel, imageDataUrl);
+  if (!apiKey) {
+    throw new Error("Please enter your API key in Settings/Onboarding.");
+  }
+  
+  return await callAIWithKey(provider, apiKey, prompt, customModel, imageDataUrl);
 }
 
 async function getUniversalPageText() {
@@ -1743,16 +1756,20 @@ const settingsPanel = document.getElementById('settingsPanel');
 const settingsProvider = document.getElementById('settingsProvider');
 const settingsApiKey = document.getElementById('settingsApiKey');
 const settingsCustomModel = document.getElementById('settingsCustomModel');
+const visionProvider = document.getElementById('visionProvider');
+const visionApiKey = document.getElementById('visionApiKey');
 const btnSaveSettings = document.getElementById('btnSaveSettings');
 const btnCloseSettings = document.getElementById('btnCloseSettings');
 const settingsError = document.getElementById('settingsError');
 const providerBadge = document.getElementById('providerBadge');
 
 async function loadAndShowSettings() {
-  const data = await getStorage(['aiProvider', 'apiKey', 'customModel']);
+  const data = await getStorage(['aiProvider', 'apiKey', 'customModel', 'visionProvider', 'visionApiKey']);
   if (settingsProvider && data.aiProvider) settingsProvider.value = data.aiProvider;
   if (settingsApiKey && data.apiKey) settingsApiKey.value = data.apiKey;
   if (settingsCustomModel) settingsCustomModel.value = data.customModel || '';
+  if (visionProvider && data.visionProvider) visionProvider.value = data.visionProvider;
+  if (visionApiKey) visionApiKey.value = data.visionApiKey || '';
   if (settingsPanel) settingsPanel.style.display = 'block';
 }
 
@@ -1788,8 +1805,11 @@ if (btnSaveSettings) {
     const provider = settingsProvider ? settingsProvider.value : 'gemini';
     const key = settingsApiKey ? settingsApiKey.value.trim() : '';
     const customModel = settingsCustomModel ? settingsCustomModel.value.trim() : '';
+    const visProv = visionProvider ? visionProvider.value : 'gemini';
+    const visKey = visionApiKey ? visionApiKey.value.trim() : '';
+    
     if (!key) {
-      if (settingsError) { settingsError.textContent = 'Please enter an API key.'; settingsError.style.display = 'block'; }
+      if (settingsError) { settingsError.textContent = 'Please enter a Primary API key.'; settingsError.style.display = 'block'; }
       return;
     }
     if (settingsError) settingsError.style.display = 'none';
@@ -1797,14 +1817,14 @@ if (btnSaveSettings) {
     btnSaveSettings.disabled = true;
     try {
       await callAIWithKey(provider, key, 'Hello, respond with one word: OK', customModel);
-      await setStorage({ aiProvider: provider, apiKey: key, customModel: customModel });
+      await setStorage({ aiProvider: provider, apiKey: key, customModel: customModel, visionProvider: visProv, visionApiKey: visKey });
       updateProviderBadge(provider);
       if (settingsPanel) settingsPanel.style.display = 'none';
       updateStatus('ready', 'Provider updated: ' + provider);
     } catch (err) {
       const msg = err.message.toLowerCase();
       if (msg.includes('high demand') || msg.includes('rate limit') || msg.includes('quota') || msg.includes('429') || msg.includes('503') || msg.includes('model') || msg.includes('decommissioned') || msg.includes('access')) {
-        await setStorage({ aiProvider: provider, apiKey: key, customModel: customModel });
+        await setStorage({ aiProvider: provider, apiKey: key, customModel: customModel, visionProvider: visProv, visionApiKey: visKey });
         updateProviderBadge(provider);
         if (settingsPanel) settingsPanel.style.display = 'none';
         updateStatus('warning', 'Key saved. Note: Default API model may be busy or unavailable.');

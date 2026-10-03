@@ -57,19 +57,27 @@
     <!-- Settings Panel -->
     <div id="settingsPanel" style="display:none; position:absolute; top:60px; right:20px; width:300px; background:var(--card-bg); border:1px solid var(--border-card); border-radius:12px; padding:16px; box-shadow:0 4px 12px rgba(0,0,0,0.1); z-index:100;">
       <h3 style="margin-bottom:12px; color:var(--text-main);">Settings</h3>
-      <label class="input-label" for="settingsProvider">AI Provider</label>
-      <select id="settingsProvider" class="text-input" style="margin-bottom:12px; width:100%;">
+      <h4 style="margin:0 0 6px 0; font-size:11px; text-transform:uppercase; color:var(--brand-main);">Text Engine (Primary)</h4>
+      <select id="settingsProvider" class="text-input" style="margin-bottom:8px; width:100%;">
         <option value="gemini">Google Gemini</option>
         <option value="groq">Groq (Llama)</option>
         <option value="grok">Grok (xAI)</option>
         <option value="openai">OpenAI</option>
         <option value="mistral">Mistral AI</option>
       </select>
-      <label class="input-label" for="settingsApiKey">API Key(s) <span style="font-weight:normal; font-size:10px; color:var(--text-muted);">(Comma-separate multiple keys to auto-bypass rate limits!)</span></label>
-      <input type="password" id="settingsApiKey" class="text-input" style="width:100%;" placeholder="AIzaSy... , AIzaSy... (optional)" />
-      <label class="input-label" for="settingsCustomModel" style="margin-top:12px;">Custom Model ID (Optional)</label>
-      <input type="text" id="settingsCustomModel" class="text-input" style="width:100%;" placeholder="Leave blank for default" />
-      <button class="primary-btn-sm" id="btnSaveSettings" style="margin-top:12px;">Save & Validate</button>
+      <input type="password" id="settingsApiKey" class="text-input" style="width:100%; margin-bottom:8px;" placeholder="API Key (Comma-separate for rate-limit rotation)" />
+      <input type="text" id="settingsCustomModel" class="text-input" style="width:100%; margin-bottom:12px;" placeholder="Custom Model ID (Optional)" />
+      
+      <div style="border-top: 1px solid var(--border-subtle); margin-bottom: 12px;"></div>
+      
+      <h4 style="margin:0 0 6px 0; font-size:11px; text-transform:uppercase; color:var(--status-green);">Vision Engine (For Smart Auto)</h4>
+      <select id="visionProvider" class="text-input" style="margin-bottom:8px; width:100%;">
+        <option value="gemini">Google Gemini</option>
+        <option value="openai">OpenAI</option>
+      </select>
+      <input type="password" id="visionApiKey" class="text-input" style="width:100%;" placeholder="Vision API Key (Optional fallback)" />
+      
+      <button class="primary-btn-sm" id="btnSaveSettings" style="margin-top:16px;">Save & Validate</button>
       <div id="settingsError" style="color:var(--status-red); margin-top:8px; display:none; font-size:12px;"></div>
       <button class="ghost-btn-sm" id="btnCloseSettings" style="margin-top:8px; width:100%; justify-content:center;">Close</button>
     </div>
