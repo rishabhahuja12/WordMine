@@ -31,6 +31,8 @@ const statusText = document.getElementById("statusText");
 
 // Curriculum Explorer DOM
 const scanCurriculumBtn = document.getElementById("scanCurriculumBtn");
+const scanBtnLabel = document.getElementById("scanBtnLabel");
+const scanBtnIcon = document.getElementById("scanBtnIcon");
 const curriculumDrawer = document.getElementById("curriculumDrawer");
 const curriculumStats = document.getElementById("curriculumStats");
 const btnFilterAll = document.getElementById("btnFilterAll");
@@ -40,6 +42,40 @@ const btnFilterNone = document.getElementById("btnFilterNone");
 const curriculumList = document.getElementById("curriculumList");
 const mineSelectedBtn = document.getElementById("mineSelectedBtn");
 const selectedCountBadge = document.getElementById("selectedCountBadge");
+
+// ─── SVG Icon Generators ─────────────────────────────────────────────────────
+
+const ICONS = {
+  search: '<circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path>',
+  chevronUp: '<polyline points="18 15 12 9 6 15"></polyline>',
+  refresh: '<path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"></path>',
+  check: '<polyline points="20 6 9 17 4 12"></polyline>',
+  video: '<polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>',
+  reading: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>',
+  quiz: '<path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>'
+};
+
+function setScanButtonState(state) {
+  if (!scanCurriculumBtn || !scanBtnLabel) return;
+
+  if (state === "scanning") {
+    scanCurriculumBtn.disabled = true;
+    scanBtnLabel.textContent = "Scanning...";
+    if (scanBtnIcon) scanBtnIcon.innerHTML = ICONS.refresh;
+  } else if (state === "hide") {
+    scanCurriculumBtn.disabled = false;
+    scanBtnLabel.textContent = "Hide";
+    if (scanBtnIcon) scanBtnIcon.innerHTML = ICONS.chevronUp;
+  } else if (state === "retry") {
+    scanCurriculumBtn.disabled = false;
+    scanBtnLabel.textContent = "Retry";
+    if (scanBtnIcon) scanBtnIcon.innerHTML = ICONS.refresh;
+  } else {
+    scanCurriculumBtn.disabled = false;
+    scanBtnLabel.textContent = "Scan";
+    if (scanBtnIcon) scanBtnIcon.innerHTML = ICONS.search;
+  }
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -77,11 +113,11 @@ function setButtonState(running) {
   isRunning = running;
   extractBtn.disabled = running;
   if (mineSelectedBtn) mineSelectedBtn.disabled = running;
-  stopBtn.style.display = running ? "block" : "none";
+  stopBtn.style.display = running ? "flex" : "none";
   if (autoToggle.checked) {
     nextBtn.style.display = "none";
   } else {
-    nextBtn.style.display = running ? "block" : "none";
+    nextBtn.style.display = running ? "flex" : "none";
   }
 }
 
@@ -123,10 +159,10 @@ async function loadCollectedFiles() {
         logSection.style.display = "block";
         logBox.innerHTML = "";
         collectedFiles.forEach(f => {
-          log(`✓ ${f.index}. ${sanitizeFilename(f.title)}`, "success");
+          log(`[${f.index}] ${sanitizeFilename(f.title)}`, "success");
         });
-        log(`\n${collectedFiles.length} file(s) ready — click Download to save.`, "success");
-        downloadBtn.style.display = "block";
+        log(`\n${collectedFiles.length} file(s) ready — click Download all to save.`, "success");
+        downloadBtn.style.display = "flex";
       }
     }
   } catch {
@@ -266,7 +302,7 @@ async function ensureContentScriptInjected(tabId) {
         target: { tabId: tabId, frameIds: [0] },
         files: ["content.js"]
       });
-      await new Promise(r => setTimeout(r, 300));
+      await new Promise(r => setTimeout(r, 200));
       return true;
     } catch (e) {
       console.warn("Could not inject content script:", e);
@@ -298,11 +334,10 @@ async function sendMessageToTab(message) {
         console.warn("Script injection check:", err);
       }
 
-      // Explicitly target top-level frame (frameId: 0) to prevent port closure from iframes
       chrome.tabs.sendMessage(tab.id, message, { frameId: 0 }, (response) => {
         if (chrome.runtime.lastError) {
           const err = chrome.runtime.lastError.message || "";
-          if (err.includes("Receiving end does not exist") || err.includes("Could not establish connection")) {
+          if (err.includes("Receiving end does not exist") || err.includes("Could not establish connection") || err.includes("message port closed")) {
             reject(new Error("Could not connect to Coursera. Please refresh (F5) the Coursera tab."));
           } else {
             reject(new Error(err));
@@ -343,45 +378,44 @@ async function detectActiveTab() {
 }
 
 async function extractCurrentVideo(index, silentMode = false) {
-  const searchingEntry = log("⏳ Searching for lesson content / transcript...");
+  const searchingEntry = log("Searching for lesson content / transcript...");
 
   try {
     const response = await sendMessageToTab({ action: "getTranscript" });
 
     if (!response) {
-      replaceLog(searchingEntry, "✗ Could not connect to Coursera. Please refresh (F5) the page and try again.", "error");
+      replaceLog(searchingEntry, "Could not connect to Coursera. Please refresh (F5) the page and try again.", "error");
       return { success: false, reason: "no_connection" };
     }
 
     if (!response.success) {
-      // Activity or Quiz detected
       if (response.reason === "is_quiz") {
         if (!includeQuizzes.checked) {
-          replaceLog(searchingEntry, `↷ Skipped Quiz: ${sanitizeFilename(response.title)}`, "skip");
+          replaceLog(searchingEntry, `Skipped Quiz: ${sanitizeFilename(response.title)}`, "skip");
           return { success: false, reason: "quiz_skipped", isEndOfCourse: response.isEndOfCourse };
         } else {
-          replaceLog(searchingEntry, `↷ Quiz / Activity (no transcript): ${sanitizeFilename(response.title)}`, "skip");
+          replaceLog(searchingEntry, `Quiz / Activity (no transcript): ${sanitizeFilename(response.title)}`, "skip");
           return { success: false, reason: "no_transcript", isEndOfCourse: response.isEndOfCourse };
         }
       }
 
       if (response.reason === "no_transcript") {
-        replaceLog(searchingEntry, "↷ No transcript found on this page — skipping.", "skip");
+        replaceLog(searchingEntry, "No transcript found on this page — skipping.", "skip");
         return { success: false, reason: "no_transcript", isEndOfCourse: response.isEndOfCourse };
       }
 
-      replaceLog(searchingEntry, `↷ Skipped: ${response.reason || "Unknown issue"}`, "skip");
+      replaceLog(searchingEntry, `Skipped: ${response.reason || "Unknown issue"}`, "skip");
       return { success: false, reason: response.reason || "skip", isEndOfCourse: response.isEndOfCourse };
     }
 
     // Check user content filters (Videos vs Readings)
     const isVideo = !response.transcript.includes("\n\n");
     if (isVideo && !includeVideos.checked) {
-      replaceLog(searchingEntry, `↷ Skipped Video (Videos unchecked): ${sanitizeFilename(response.title)}`, "skip");
+      replaceLog(searchingEntry, `Skipped Video (Videos unchecked): ${sanitizeFilename(response.title)}`, "skip");
       return { success: false, reason: "filtered_video", isEndOfCourse: response.isEndOfCourse };
     }
     if (!isVideo && !includeReadings.checked) {
-      replaceLog(searchingEntry, `↷ Skipped Reading (Readings unchecked): ${sanitizeFilename(response.title)}`, "skip");
+      replaceLog(searchingEntry, `Skipped Reading (Readings unchecked): ${sanitizeFilename(response.title)}`, "skip");
       return { success: false, reason: "filtered_reading", isEndOfCourse: response.isEndOfCourse };
     }
 
@@ -397,7 +431,7 @@ async function extractCurrentVideo(index, silentMode = false) {
 
     await saveCollectedFiles();
 
-    replaceLog(searchingEntry, `✓ ${fileIndex}. ${sanitizeFilename(response.title)}`, "success");
+    replaceLog(searchingEntry, `[${fileIndex}] ${sanitizeFilename(response.title)}`, "success");
 
     // Only trigger immediate individual download in manual mode
     if (!silentMode) {
@@ -407,7 +441,7 @@ async function extractCurrentVideo(index, silentMode = false) {
     return { success: true, isEndOfCourse: response.isEndOfCourse };
 
   } catch (err) {
-    replaceLog(searchingEntry, `✗ Error: ${err.message}`, "error");
+    replaceLog(searchingEntry, `Error: ${err.message}`, "error");
     return { success: false, reason: "fatal_error" };
   }
 }
@@ -430,40 +464,146 @@ async function runAutoMode() {
   collectedFiles = [];
   await saveCollectedFiles();
   setButtonState(true);
-  log("▶ Auto mode — mining transcripts silently...");
+  log("Auto mode — mining transcripts silently...");
 
   let pageIndex = 1;
 
   while (!shouldStop) {
     const result = await extractCurrentVideo(pageIndex, true);
 
-    // If fatal connection error or stopped, break out immediately
     if (!result.success && result.reason !== "no_transcript" && result.reason !== "quiz_skipped" && result.reason !== "filtered_video" && result.reason !== "filtered_reading") {
       break;
     }
 
     if (result.isEndOfCourse) {
-      log("🏁 Reached end of course.", "success");
+      log("Reached end of course.", "success");
       break;
     }
 
     const advanced = await goToNextVideo();
     if (!advanced) {
-      log("✗ Could not find Next button — stopping.", "error");
+      log("Could not find Next button — stopping.", "error");
       break;
     }
 
     pageIndex++;
   }
 
-  if (shouldStop) log("⏹ Stopped by user.");
+  if (shouldStop) log("Mining stopped by user.");
   setButtonState(false);
 
   if (collectedFiles.length > 0) {
-    log(`\n✅ ${collectedFiles.length} transcript(s) mined. Click Download to save.`, "success");
-    downloadBtn.style.display = "block";
+    log(`\nFinished! ${collectedFiles.length} transcript(s) mined. Click Download all to save.`, "success");
+    downloadBtn.style.display = "flex";
     await downloadAsZip(collectedFiles);
   }
+}
+
+// ─── In-Page Direct DOM Curriculum Extractor (Immune to Port Errors) ──────────
+
+function extractCurriculumDirectly() {
+  const links = Array.from(document.querySelectorAll('a[href*="/learn/"]'));
+  const validPathKeywords = ["/lecture/", "/supplement/", "/quiz/", "/exam/", "/assignment-submission/", "/peer/", "/discussionPrompt/", "/ungradedWidget/"];
+
+  const modulesMap = new Map();
+  const seenHrefs = new Set();
+
+  function cleanStr(s) {
+    return (s || "").replace(/​/g, "").replace(/\u00a0/g, " ").trim();
+  }
+
+  links.forEach(a => {
+    const href = a.href;
+    const cleanHref = href.split("?")[0].split("#")[0];
+
+    const isLessonLink = validPathKeywords.some(keyword => cleanHref.includes(keyword));
+    if (!isLessonLink) return;
+    if (seenHrefs.has(cleanHref)) return;
+    seenHrefs.add(cleanHref);
+
+    let type = "other";
+    if (cleanHref.includes("/lecture/")) type = "video";
+    else if (cleanHref.includes("/supplement/")) type = "reading";
+    else if (cleanHref.includes("/quiz/") || cleanHref.includes("/practice-quiz/")) type = "quiz";
+    else if (cleanHref.includes("/exam/")) type = "exam";
+    else if (cleanHref.includes("/assignment-submission/") || cleanHref.includes("/peer/")) type = "assignment";
+    else if (cleanHref.includes("/discussionPrompt/") || cleanHref.includes("/discussion/")) type = "discussion";
+    else if (cleanHref.includes("/ungradedWidget/") || cleanHref.includes("/ungradedLti/")) type = "lab";
+
+    let rawText = cleanStr(a.innerText || "");
+    let title = rawText
+      .replace(/^(Video|Reading|Practice Quiz|Quiz|Graded Quiz|Assignment|Discussion Prompt|Plugin|Ungraded Plugin)\s*[•·-]\s*(\d+\s*(min|m|hours|h))?/i, "")
+      .replace(/^(Video|Reading|Quiz|Assignment|Discussion)\s*/i, "")
+      .replace(/^\d+[\.\)]\s*/, "")
+      .trim();
+
+    if (!title || title.length < 2) {
+      const heading = a.querySelector("h2, h3, h4, span, p");
+      title = heading ? cleanStr(heading.innerText) : cleanHref.split("/").pop().replace(/-/g, " ");
+    }
+
+    let moduleName = "Course Outline";
+    const moduleContainer = a.closest('[data-testid*="module"], [data-testid*="accordion"], .rc-Module, [role="region"], section, li');
+    if (moduleContainer) {
+      const headerEl = moduleContainer.querySelector('h2, h3, h4, [data-testid*="title"], [data-testid*="header"]');
+      if (headerEl) {
+        moduleName = cleanStr(headerEl.innerText) || moduleName;
+      }
+    } else {
+      let curr = a.parentElement;
+      for (let i = 0; i < 5 && curr; i++) {
+        const prevH = curr.querySelector('h2, h3, h4');
+        if (prevH && prevH !== a) {
+          moduleName = cleanStr(prevH.innerText);
+          break;
+        }
+        curr = curr.parentElement;
+      }
+    }
+
+    moduleName = moduleName.split("\n")[0].trim() || "Course Outline";
+
+    if (!modulesMap.has(moduleName)) {
+      modulesMap.set(moduleName, []);
+    }
+
+    modulesMap.get(moduleName).push({
+      title: title || "Untitled Lesson",
+      type: type,
+      url: cleanHref
+    });
+  });
+
+  const result = [];
+  modulesMap.forEach((items, moduleTitle) => {
+    if (items.length > 0) {
+      result.push({ moduleTitle, items });
+    }
+  });
+
+  if (result.length === 0) {
+    const currentHref = window.location.href.split("?")[0].split("#")[0];
+    const heading = document.querySelector(".video-name, #main-container h1, h1");
+    const currentTitle = heading ? heading.innerText.trim() : document.title.split("|")[0].trim();
+    let currentType = "other";
+    if (currentHref.includes("/lecture/")) currentType = "video";
+    else if (currentHref.includes("/supplement/")) currentType = "reading";
+    else if (currentHref.includes("/quiz/")) currentType = "quiz";
+    else if (currentHref.includes("/exam/")) currentType = "exam";
+
+    if (currentTitle && currentType !== "other") {
+      result.push({
+        moduleTitle: "Current Lesson",
+        items: [{
+          title: currentTitle,
+          type: currentType,
+          url: currentHref
+        }]
+      });
+    }
+  }
+
+  return result;
 }
 
 // ─── Curriculum Explorer Functions ────────────────────────────────────────────
@@ -503,7 +643,7 @@ function updateCurriculumStats() {
 function renderCurriculum(modules) {
   curriculumList.innerHTML = "";
   if (!modules || modules.length === 0) {
-    curriculumList.innerHTML = '<div class="curriculum-empty">No modules detected. Make sure you are on a Coursera course page with the course outline or syllabus visible.</div>';
+    curriculumList.innerHTML = '<div class="curriculum-empty">No modules detected. Make sure you are on a Coursera course page with the course outline or sidebar visible.</div>';
     mineSelectedBtn.style.display = "none";
     curriculumStats.textContent = "0 items";
     return;
@@ -531,7 +671,6 @@ function renderCurriculum(modules) {
       const rowEl = document.createElement("div");
       rowEl.className = "lesson-item-row";
 
-      // By default: check videos if includeVideos, readings if includeReadings, quizzes if includeQuizzes
       let isChecked = true;
       if (item.type === "video") isChecked = includeVideos.checked;
       else if (item.type === "reading") isChecked = includeReadings.checked;
@@ -603,7 +742,7 @@ async function runMineSelected() {
   logBox.innerHTML = "";
   downloadBtn.style.display = "none";
 
-  log(`▶ Mining ${items.length} selected lesson(s)...`, "success");
+  log(`Mining ${items.length} selected lesson(s)...`, "success");
 
   for (let i = 0; i < items.length && !shouldStop; i++) {
     const item = items[i];
@@ -621,16 +760,16 @@ async function runMineSelected() {
       await new Promise(r => setTimeout(r, 1000));
 
     } catch (err) {
-      log(`✗ Error on "${item.title}": ${err.message}`, "error");
+      log(`Error on "${item.title}": ${err.message}`, "error");
     }
   }
 
-  if (shouldStop) log("⏹ Mining stopped by user.", "skip");
+  if (shouldStop) log("Mining stopped by user.", "skip");
   setButtonState(false);
 
   if (collectedFiles.length > 0) {
-    log(`\n✅ Finished! ${collectedFiles.length} transcript(s) collected.`, "success");
-    downloadBtn.style.display = "block";
+    log(`\nFinished! ${collectedFiles.length} transcript(s) collected.`, "success");
+    downloadBtn.style.display = "flex";
     if (autoToggle.checked) {
       await downloadAsZip(collectedFiles);
     }
@@ -643,29 +782,56 @@ scanCurriculumBtn.addEventListener("click", async () => {
   const isVisible = curriculumDrawer.style.display !== "none";
   if (isVisible && scannedModules.length > 0) {
     curriculumDrawer.style.display = "none";
-    scanCurriculumBtn.textContent = "🔍 Scan";
+    setScanButtonState("scan");
     return;
   }
 
-  scanCurriculumBtn.disabled = true;
-  scanCurriculumBtn.textContent = "⏳ Scanning...";
+  setScanButtonState("scanning");
   curriculumDrawer.style.display = "flex";
 
   try {
-    const response = await sendMessageToTab({ action: "scanCurriculum" });
-    if (response && response.success && response.modules) {
-      scannedModules = response.modules;
+    const tabs = await new Promise(r => chrome.tabs.query({ active: true, currentWindow: true }, r));
+    if (!tabs || tabs.length === 0) throw new Error("No active browser tab.");
+    const tab = tabs[0];
+
+    let modules = null;
+
+    // Strategy 1: sendMessage to content script
+    try {
+      const response = await sendMessageToTab({ action: "scanCurriculum" });
+      if (response && response.success && response.modules && response.modules.length > 0) {
+        modules = response.modules;
+      }
+    } catch (msgErr) {
+      console.warn("sendMessage scan failed, falling back to direct in-page execution:", msgErr);
+    }
+
+    // Strategy 2: Direct script execution in tab (immune to message port closure!)
+    if (!modules && chrome.scripting && tab.id) {
+      try {
+        const results = await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: extractCurriculumDirectly
+        });
+        if (results && results[0] && results[0].result && results[0].result.length > 0) {
+          modules = results[0].result;
+        }
+      } catch (execErr) {
+        console.warn("Direct execution fallback failed:", execErr);
+      }
+    }
+
+    if (modules && modules.length > 0) {
+      scannedModules = modules;
       renderCurriculum(scannedModules);
-      scanCurriculumBtn.textContent = "▲ Hide";
+      setScanButtonState("hide");
     } else {
-      curriculumList.innerHTML = '<div class="curriculum-empty">Could not read syllabus. Please ensure the Coursera course page has finished loading.</div>';
-      scanCurriculumBtn.textContent = "🔍 Retry";
+      curriculumList.innerHTML = '<div class="curriculum-empty">Could not find lessons. Make sure you are on a Coursera course page with the course outline or sidebar open.</div>';
+      setScanButtonState("retry");
     }
   } catch (err) {
-    curriculumList.innerHTML = `<div class="curriculum-empty">Error: ${err.message}</div>`;
-    scanCurriculumBtn.textContent = "🔍 Retry";
-  } finally {
-    scanCurriculumBtn.disabled = false;
+    curriculumList.innerHTML = `<div class="curriculum-empty">Could not scan lessons. Please refresh (F5) the Coursera tab and try again.</div>`;
+    setScanButtonState("retry");
   }
 });
 
@@ -682,13 +848,13 @@ autoToggle.addEventListener("change", () => {
   if (autoToggle.checked) {
     modeTitle.textContent = "Auto-advance: On";
     modeDesc.textContent = "Silently mines all lessons into one ZIP archive.";
-    extractBtn.textContent = "Start auto-mining";
+    extractBtn.querySelector(".btn-text").textContent = "Start auto-mining";
     nextBtn.style.display = "none";
   } else {
     modeTitle.textContent = "Auto-advance: Off";
     modeDesc.textContent = "You click Next lesson yourself after each page.";
-    extractBtn.textContent = "Mine this lesson";
-    nextBtn.style.display = isRunning ? "block" : "none";
+    extractBtn.querySelector(".btn-text").textContent = "Mine this lesson";
+    nextBtn.style.display = isRunning ? "flex" : "none";
   }
 });
 
@@ -709,23 +875,24 @@ extractBtn.addEventListener("click", async () => {
 
 nextBtn.addEventListener("click", async () => {
   nextBtn.disabled = true;
-  nextBtn.textContent = "Loading...";
+  nextBtn.querySelector(".btn-text").textContent = "Loading...";
   const advanced = await goToNextVideo();
-  if (!advanced) log("✗ Could not find Next button.", "error");
+  if (!advanced) log("Could not find Next button.", "error");
   nextBtn.disabled = false;
-  nextBtn.textContent = "Next lesson →";
+  nextBtn.querySelector(".btn-text").textContent = "Next lesson";
 });
 
 stopBtn.addEventListener("click", () => {
   shouldStop = true;
-  log("⏹ Stopping after current lesson...", "skip");
+  log("Stopping after current lesson...", "skip");
 });
 
 downloadBtn.addEventListener("click", async () => {
-  downloadBtn.textContent = "⏳ Preparing ZIP...";
+  const originalText = downloadBtn.querySelector("span").textContent;
+  downloadBtn.querySelector("span").textContent = "Preparing ZIP...";
   downloadBtn.disabled = true;
   await downloadAsZip(collectedFiles);
-  downloadBtn.textContent = "⬇ Download all (.zip)";
+  downloadBtn.querySelector("span").textContent = originalText;
   downloadBtn.disabled = false;
 });
 

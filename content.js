@@ -1,11 +1,10 @@
 // content.js — runs on every Coursera lesson page
 // Listens for messages from popup.js and responds with transcript / reading data
-//
-// Note on the 2024+ Coursera redesign:
-// The Transcript / Notes / Files controls now live in a right-hand side panel.
-// The active tab is indicated with aria-pressed (it used to be aria-selected),
-// and re-clicking the active tab toggles the panel closed — so we must only
-// click the Transcript tab when it is NOT already active.
+
+if (window.__wordmine_initialized) {
+  // Content script already loaded in this frame
+} else {
+window.__wordmine_initialized = true;
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -182,25 +181,8 @@ function getPageType() {
   return "other";
 }
 
-async function scanCurriculum() {
-  // If sidebar / navigation drawer is present but collapsed, safely attempt to open it.
-  // CRITICAL: NEVER click anything containing 'next', 'prev', or pagination buttons!
-  const drawerBtn = document.querySelector(
-    '[data-testid="item-sidebar-toggle"], button[aria-label="Course Material"], button[aria-label="Course navigation"], button[aria-label="Toggle navigation menu"], button[aria-label="Course Outline"]'
-  );
-  if (drawerBtn) {
-    const label = (drawerBtn.getAttribute("aria-label") || "").toLowerCase();
-    const isNavigationPager = label.includes("next") || label.includes("prev") || label.includes("item");
-    if (!isNavigationPager && drawerBtn.getAttribute("aria-expanded") === "false") {
-      try {
-        drawerBtn.click();
-        await new Promise(r => setTimeout(r, 500));
-      } catch {
-        // ignore
-      }
-    }
-  }
-
+function scanCurriculum() {
+  // Pure read-only DOM extraction — NEVER click anything or mutate DOM!
   // Find all lesson item links in the DOM
   const links = Array.from(document.querySelectorAll('a[href*="/learn/"]'));
   const validPathKeywords = ["/lecture/", "/supplement/", "/quiz/", "/exam/", "/assignment-submission/", "/peer/", "/discussionPrompt/", "/ungradedWidget/"];
@@ -315,14 +297,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   // SCAN_CURRICULUM — scan and return all course modules and items
   if (message.action === "scanCurriculum") {
-    (async () => {
-      try {
-        const modules = await scanCurriculum();
-        sendResponse({ success: true, modules });
-      } catch (err) {
-        sendResponse({ success: false, error: err.message });
-      }
-    })();
+    try {
+      const modules = scanCurriculum();
+      sendResponse({ success: true, modules });
+    } catch (err) {
+      sendResponse({ success: false, error: err.message });
+    }
     return true;
   }
 
@@ -439,3 +419,5 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
 });
+
+} // end window.__wordmine_initialized

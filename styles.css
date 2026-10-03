@@ -182,10 +182,9 @@ body {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
-.format-pill .check-icon {
+.check-icon-svg {
   display: none;
-  font-size: 13px;
-  font-weight: 800;
+  flex-shrink: 0;
 }
 
 .format-option:hover .format-pill {
@@ -200,7 +199,7 @@ body {
   font-weight: 700;
 }
 
-.format-option input:checked + .format-pill .check-icon {
+.format-option input:checked + .format-pill .check-icon-svg {
   display: inline-block;
 }
 
@@ -331,7 +330,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 5px;
   padding: 8px 4px;
   background-color: #FFFFFF;
   border: 1px solid var(--border-card);
@@ -344,12 +343,15 @@ body {
   white-space: nowrap;
 }
 
-.chip-content .chip-check {
-  font-size: 11px;
-  font-weight: 800;
-  opacity: 0;
-  margin-right: -2px;
-  transition: opacity 0.15s ease;
+.chip-type-svg {
+  flex-shrink: 0;
+  stroke: var(--text-muted);
+  transition: stroke 0.15s ease;
+}
+
+.chip-check-svg {
+  display: none;
+  flex-shrink: 0;
 }
 
 .filter-chip:hover .chip-content {
@@ -364,8 +366,13 @@ body {
   font-weight: 600;
 }
 
-.filter-chip input:checked + .chip-content .chip-check {
-  opacity: 1;
+.filter-chip input:checked + .chip-content .chip-type-svg {
+  display: none;
+}
+
+.filter-chip input:checked + .chip-content .chip-check-svg {
+  display: inline-block;
+  stroke: var(--teal-primary);
 }
 
 /* ─── Buttons ──────────────────────────────────────────────────────────────── */
@@ -407,6 +414,10 @@ body {
 }
 
 .secondary-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   background-color: #FFFFFF;
   color: var(--text-main);
   border: 1px solid var(--border-card);
@@ -426,6 +437,10 @@ body {
 }
 
 .danger-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   background-color: #FEF2F2;
   color: #991B1B;
   border: 1px solid #FECACA;
@@ -441,6 +456,10 @@ body {
 
 .danger-btn:hover {
   background-color: #FEE2E2;
+}
+
+.btn-icon-svg {
+  flex-shrink: 0;
 }
 
 /* ─── Curriculum Selector Drawer ───────────────────────────────────────────── */
@@ -462,9 +481,12 @@ body {
   gap: 10px;
 }
 
-.curriculum-icon {
-  font-size: 16px;
-  line-height: 1;
+.curriculum-icon-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--teal-primary);
+  flex-shrink: 0;
 }
 
 .curriculum-title {
@@ -481,6 +503,9 @@ body {
 }
 
 .ghost-btn-sm {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   background: #FFFFFF;
   border: 1px solid var(--border-card);
   border-radius: 8px;
@@ -491,6 +516,11 @@ body {
   cursor: pointer;
   transition: all 0.15s ease;
   white-space: nowrap;
+}
+
+.scan-icon-svg {
+  flex-shrink: 0;
+  stroke: var(--teal-primary);
 }
 
 .ghost-btn-sm:hover {
