@@ -183,16 +183,21 @@ function getPageType() {
 }
 
 async function scanCurriculum() {
-  // If sidebar / navigation drawer is present but collapsed, attempt to open it
+  // If sidebar / navigation drawer is present but collapsed, safely attempt to open it.
+  // CRITICAL: NEVER click anything containing 'next', 'prev', or pagination buttons!
   const drawerBtn = document.querySelector(
-    '[data-testid="item-sidebar-toggle"], button[aria-label*="Course Material" i], button[aria-label*="Navigation menu" i], button[aria-label*="course navigation" i], button[aria-label*="navigation" i]'
+    '[data-testid="item-sidebar-toggle"], button[aria-label="Course Material"], button[aria-label="Course navigation"], button[aria-label="Toggle navigation menu"], button[aria-label="Course Outline"]'
   );
-  if (drawerBtn && drawerBtn.getAttribute("aria-expanded") !== "true") {
-    try {
-      drawerBtn.click();
-      await new Promise(r => setTimeout(r, 600));
-    } catch {
-      // ignore
+  if (drawerBtn) {
+    const label = (drawerBtn.getAttribute("aria-label") || "").toLowerCase();
+    const isNavigationPager = label.includes("next") || label.includes("prev") || label.includes("item");
+    if (!isNavigationPager && drawerBtn.getAttribute("aria-expanded") === "false") {
+      try {
+        drawerBtn.click();
+        await new Promise(r => setTimeout(r, 500));
+      } catch {
+        // ignore
+      }
     }
   }
 
@@ -277,6 +282,23 @@ async function scanCurriculum() {
       });
     }
   });
+
+  // Fallback: If no sidebar/syllabus links are visible in DOM, include the current page lesson
+  if (result.length === 0) {
+    const currentHref = window.location.href.split("?")[0].split("#")[0];
+    const currentType = getPageType();
+    const currentTitle = getVideoTitle() || getReadingTitle() || document.title.split("|")[0].trim();
+    if (currentTitle && currentType !== "other") {
+      result.push({
+        moduleTitle: "Current Lesson",
+        items: [{
+          title: currentTitle,
+          type: currentType,
+          url: currentHref
+        }]
+      });
+    }
+  }
 
   return result;
 }

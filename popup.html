@@ -8,175 +8,176 @@
 </head>
 <body>
 
-  <div class="app-wrapper">
+  <div class="app-container">
 
-    <!-- Neo-Brutalist High-Contrast Header -->
-    <header class="header">
-      <div class="header-left">
-        <div class="logo-frame">
-          <img src="icons/icon48.png" alt="WordMine" class="logo-img" />
+    <!-- Header matching Redesign@2x.png -->
+    <header class="app-header">
+      <div class="brand-left">
+        <div class="brand-logo">
+          <img src="icons/icon48.png" alt="W" class="brand-icon-img" />
         </div>
-        <div class="header-text">
-          <div class="brand-row">
-            <h1 class="brand-name">WORDMINE</h1>
-            <span class="pro-tag">FREE</span>
-          </div>
-          <p class="brand-sub">Coursera Transcript Miner</p>
+        <div class="brand-text">
+          <h1 class="brand-title">WordMine</h1>
+          <p class="brand-subtitle">Coursera transcript miner</p>
         </div>
+      </div>
+      <div class="brand-right">
+        <span class="free-badge">Free</span>
       </div>
     </header>
 
-    <main class="main-body">
+    <main class="app-main">
 
-      <!-- Step 1: Format Selection -->
-      <section class="neo-card">
-        <div class="card-title-row">
-          <span class="step-badge">1</span>
-          <h2 class="card-heading">OUTPUT FORMAT</h2>
-        </div>
-        <div class="format-grid">
-          <label class="format-btn">
+      <!-- Output format selector -->
+      <section class="section-group">
+        <label class="section-label">Output format</label>
+        <div class="format-segmented-control">
+          <label class="format-option">
             <input type="radio" name="format" value="docx" checked />
-            <span class="format-box">
-              <span class="format-icon">📄</span>
-              <span class="format-text">DOCX</span>
+            <span class="format-pill">
+              <span class="check-icon">✓</span>
+              <span class="format-name">DOCX</span>
             </span>
           </label>
-          <label class="format-btn">
+          <label class="format-option">
             <input type="radio" name="format" value="pdf" />
-            <span class="format-box">
-              <span class="format-icon">📑</span>
-              <span class="format-text">PDF</span>
+            <span class="format-pill">
+              <span class="check-icon">✓</span>
+              <span class="format-name">PDF</span>
             </span>
           </label>
-          <label class="format-btn">
+          <label class="format-option">
             <input type="radio" name="format" value="txt" />
-            <span class="format-box">
-              <span class="format-icon">📝</span>
-              <span class="format-text">TXT</span>
+            <span class="format-pill">
+              <span class="check-icon">✓</span>
+              <span class="format-name">TXT</span>
             </span>
           </label>
         </div>
       </section>
 
-      <!-- Step 2: Content Filters & Advance Mode -->
-      <section class="neo-card">
-        <div class="card-title-row">
-          <span class="step-badge">2</span>
-          <h2 class="card-heading">FILTERS &amp; ADVANCE MODE</h2>
-        </div>
-
-        <!-- Quick Activity Exclusion / Inclusion Filters -->
-        <div class="filter-chips-row">
-          <label class="filter-chip">
-            <input type="checkbox" id="filterVideos" checked />
-            <span class="chip-box">🎥 Videos</span>
-          </label>
-          <label class="filter-chip">
-            <input type="checkbox" id="filterReadings" checked />
-            <span class="chip-box">📖 Readings</span>
-          </label>
-          <label class="filter-chip chip-highlight">
-            <input type="checkbox" id="skipQuizzes" checked />
-            <span class="chip-box">🚫 Skip Quizzes</span>
-          </label>
-        </div>
-
-        <div class="card-divider"></div>
-
-        <div class="mode-row">
-          <div class="mode-info">
-            <span class="mode-title">Auto-Advance</span>
-            <span class="mode-desc" id="modeHint">Manual: click Next Lesson yourself after each page.</span>
+      <!-- Auto-advance & Content Filter Card -->
+      <section class="control-card">
+        
+        <!-- Auto-advance row matching Redesign@2x.png -->
+        <div class="auto-advance-row">
+          <div class="auto-advance-info">
+            <h2 class="auto-advance-title" id="modeTitle">Auto-advance: Off</h2>
+            <p class="auto-advance-desc" id="modeDesc">You click Next lesson yourself after each page.</p>
           </div>
-          <label class="neo-toggle">
+          <label class="switch-toggle" title="Toggle Auto-advance">
             <input type="checkbox" id="autoToggle" />
-            <span class="toggle-track">
-              <span class="toggle-knob"></span>
+            <span class="switch-track">
+              <span class="switch-thumb"></span>
             </span>
           </label>
         </div>
+
+        <div class="card-separator"></div>
+
+        <!-- Content to mine: Symmetrical 3-chip filter on 1 clean line -->
+        <div class="content-filter-block">
+          <span class="filter-header-label">Content to mine</span>
+          <div class="filter-chips-grid">
+            <label class="filter-chip">
+              <input type="checkbox" id="includeVideos" checked />
+              <span class="chip-content">
+                <span class="chip-check">✓</span>
+                <span class="chip-text">Videos</span>
+              </span>
+            </label>
+            <label class="filter-chip">
+              <input type="checkbox" id="includeReadings" checked />
+              <span class="chip-content">
+                <span class="chip-check">✓</span>
+                <span class="chip-text">Readings</span>
+              </span>
+            </label>
+            <label class="filter-chip">
+              <input type="checkbox" id="includeQuizzes" />
+              <span class="chip-content">
+                <span class="chip-check">✓</span>
+                <span class="chip-text">Quizzes</span>
+              </span>
+            </label>
+          </div>
+        </div>
+
       </section>
 
-      <!-- Main Action Buttons -->
-      <div class="button-stack">
-        <button class="neo-btn btn-primary" id="extractBtn">
-          <span class="btn-icon">⛏</span>
-          <span class="btn-label">MINE THIS LESSON</span>
+      <!-- Primary & Contextual Action Buttons -->
+      <div class="action-buttons-group">
+        <button class="primary-btn" id="extractBtn">
+          Mine this lesson
         </button>
-        <button class="neo-btn btn-secondary" id="nextBtn" style="display:none;">
-          NEXT LESSON →
+        <button class="secondary-btn" id="nextBtn" style="display:none;">
+          Next lesson →
         </button>
-        <button class="neo-btn btn-stop" id="stopBtn" style="display:none;">
-          ⏹ STOP MINING
+        <button class="danger-btn" id="stopBtn" style="display:none;">
+          ⏹ Stop mining
         </button>
       </div>
 
-      <!-- Curriculum Selector Accordion / Drawer -->
-      <section class="neo-card curriculum-card">
-        <div class="curriculum-toggle-bar">
-          <div class="curriculum-info">
+      <!-- Curriculum Explorer (Module & Lesson Selector) -->
+      <section class="control-card curriculum-card">
+        <div class="curriculum-header-row">
+          <div class="curriculum-title-wrap">
             <span class="curriculum-icon">📚</span>
             <div>
-              <h2 class="card-heading">MODULE &amp; LESSON SELECTOR</h2>
-              <p class="curriculum-sub">Select specific modules or skip quizzes</p>
+              <h3 class="curriculum-title">Module &amp; Lesson Selector</h3>
+              <p class="curriculum-subtitle">Select specific lessons to mine</p>
             </div>
           </div>
-          <button class="neo-btn-sm" id="scanCurriculumBtn">
-            🔍 SCAN
+          <button class="ghost-btn-sm" id="scanCurriculumBtn">
+            🔍 Scan
           </button>
         </div>
 
-        <div class="curriculum-body" id="curriculumDrawer" style="display:none;">
-          <!-- Quick Filter Presets -->
-          <div class="curriculum-controls">
+        <div class="curriculum-drawer" id="curriculumDrawer" style="display:none;">
+          <div class="curriculum-toolbar">
             <span class="curriculum-count" id="curriculumStats">0 selected</span>
-            <div class="curriculum-filter-pills">
-              <button class="pill-btn" id="btnFilterAll">All</button>
-              <button class="pill-btn" id="btnFilterVideos">Videos</button>
-              <button class="pill-btn" id="btnFilterNoQuizzes">No Quizzes</button>
-              <button class="pill-btn" id="btnFilterNone">None</button>
+            <div class="curriculum-quick-pills">
+              <button class="quick-pill" id="btnFilterAll">All</button>
+              <button class="quick-pill" id="btnFilterVideos">Videos</button>
+              <button class="quick-pill" id="btnFilterReadings">Readings</button>
+              <button class="quick-pill" id="btnFilterNone">None</button>
             </div>
           </div>
 
-          <!-- Dynamic Module & Item Checklist Tree -->
-          <div class="curriculum-scroll-box" id="curriculumList">
-            <div class="empty-curriculum-hint">Click <b>SCAN</b> above to load all course modules and lessons.</div>
+          <div class="curriculum-tree-container" id="curriculumList">
+            <div class="curriculum-empty">Click <b>Scan</b> to discover all course modules and lessons.</div>
           </div>
 
-          <!-- Mine Selected Button -->
-          <button class="neo-btn btn-mine-selected" id="mineSelectedBtn" style="display:none;">
-            ⛏ MINE SELECTED (<span id="selectedCountBadge">0</span>)
+          <button class="primary-btn-sm" id="mineSelectedBtn" style="display:none;">
+            Mine Selected (<span id="selectedCountBadge">0</span>)
           </button>
         </div>
       </section>
 
-      <!-- Mining Feed / Log Section -->
-      <section class="neo-card feed-card" id="logSection" style="display:none;">
-        <div class="feed-header-row">
+      <!-- Live Mining Feed & Download -->
+      <section class="control-card feed-card" id="logSection" style="display:none;">
+        <div class="feed-header">
           <div class="feed-title-wrap">
-            <span class="live-dot"></span>
-            <span class="feed-title">MINING FEED</span>
+            <span class="pulse-indicator"></span>
+            <span class="feed-title">Mining Feed</span>
           </div>
-          <span class="feed-badge">LIVE</span>
+          <button class="clear-link-btn" id="clearBtn" title="Clear log">Clear</button>
         </div>
-        <div class="log-container" id="logBox"></div>
-        <div class="feed-btn-row">
-          <button class="neo-btn btn-download" id="downloadBtn" style="display:none;">
-            ⬇ DOWNLOAD ALL (.ZIP)
-          </button>
-          <button class="neo-btn btn-clear" id="clearBtn" style="display:none;">
-            ✕ CLEAR LOG
+        <div class="feed-box" id="logBox"></div>
+        <div class="feed-actions">
+          <button class="primary-btn download-btn" id="downloadBtn" style="display:none;">
+            ⬇ Download all (.zip)
           </button>
         </div>
       </section>
+
+      <!-- Status Bar matching Redesign@2x.png -->
+      <footer class="app-status-bar">
+        <span class="status-dot dot-ready" id="statusIndicator"></span>
+        <span class="status-message" id="statusText">Ready. Lesson page detected.</span>
+      </footer>
 
     </main>
-
-    <!-- Footer -->
-    <footer class="footer">
-      <span>WordMine v2.0 • 100% Free &amp; Open Source</span>
-    </footer>
 
   </div>
 

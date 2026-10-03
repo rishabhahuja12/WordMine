@@ -1,4 +1,4 @@
-// popup.js — controls the popup UI, curriculum scanner, and orchestrates extraction
+// popup.js — controls the WordMine popup UI, curriculum scanner, and orchestrates extraction
 
 // ─── State ───────────────────────────────────────────────────────────────────
 
@@ -10,7 +10,8 @@ let scannedModules = [];
 // ─── DOM References ──────────────────────────────────────────────────────────
 
 const autoToggle = document.getElementById("autoToggle");
-const modeHint = document.getElementById("modeHint");
+const modeTitle = document.getElementById("modeTitle");
+const modeDesc = document.getElementById("modeDesc");
 const extractBtn = document.getElementById("extractBtn");
 const nextBtn = document.getElementById("nextBtn");
 const stopBtn = document.getElementById("stopBtn");
@@ -19,10 +20,14 @@ const logBox = document.getElementById("logBox");
 const downloadBtn = document.getElementById("downloadBtn");
 const clearBtn = document.getElementById("clearBtn");
 
-// Filter checkboxes
-const filterVideos = document.getElementById("filterVideos");
-const filterReadings = document.getElementById("filterReadings");
-const skipQuizzes = document.getElementById("skipQuizzes");
+// Filter checkboxes (Symmetrical: all express what to include)
+const includeVideos = document.getElementById("includeVideos");
+const includeReadings = document.getElementById("includeReadings");
+const includeQuizzes = document.getElementById("includeQuizzes");
+
+// Status Bar
+const statusIndicator = document.getElementById("statusIndicator");
+const statusText = document.getElementById("statusText");
 
 // Curriculum Explorer DOM
 const scanCurriculumBtn = document.getElementById("scanCurriculumBtn");
@@ -30,7 +35,7 @@ const curriculumDrawer = document.getElementById("curriculumDrawer");
 const curriculumStats = document.getElementById("curriculumStats");
 const btnFilterAll = document.getElementById("btnFilterAll");
 const btnFilterVideos = document.getElementById("btnFilterVideos");
-const btnFilterNoQuizzes = document.getElementById("btnFilterNoQuizzes");
+const btnFilterReadings = document.getElementById("btnFilterReadings");
 const btnFilterNone = document.getElementById("btnFilterNone");
 const curriculumList = document.getElementById("curriculumList");
 const mineSelectedBtn = document.getElementById("mineSelectedBtn");
@@ -39,7 +44,8 @@ const selectedCountBadge = document.getElementById("selectedCountBadge");
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function getSelectedFormat() {
-  return document.querySelector('input[name="format"]:checked').value;
+  const checked = document.querySelector('input[name="format"]:checked');
+  return checked ? checked.value : "docx";
 }
 
 function log(message, type = "normal") {
@@ -71,12 +77,25 @@ function setButtonState(running) {
   isRunning = running;
   extractBtn.disabled = running;
   if (mineSelectedBtn) mineSelectedBtn.disabled = running;
-  stopBtn.style.display = running ? "flex" : "none";
+  stopBtn.style.display = running ? "block" : "none";
   if (autoToggle.checked) {
     nextBtn.style.display = "none";
   } else {
-    nextBtn.style.display = running ? "flex" : "none";
+    nextBtn.style.display = running ? "block" : "none";
   }
+}
+
+function updateStatus(state, message) {
+  if (!statusIndicator || !statusText) return;
+  statusIndicator.className = "status-dot";
+  if (state === "ready") {
+    statusIndicator.classList.add("dot-ready");
+  } else if (state === "warning") {
+    statusIndicator.classList.add("dot-warning");
+  } else {
+    statusIndicator.classList.add("dot-muted");
+  }
+  statusText.textContent = message;
 }
 
 // ─── Storage helpers ──────────────────────────────────────────────────────────
@@ -107,8 +126,7 @@ async function loadCollectedFiles() {
           log(`✓ ${f.index}. ${sanitizeFilename(f.title)}`, "success");
         });
         log(`\n${collectedFiles.length} file(s) ready — click Download to save.`, "success");
-        downloadBtn.style.display = "flex";
-        clearBtn.style.display = "flex";
+        downloadBtn.style.display = "block";
       }
     }
   } catch {
@@ -230,9 +248,8 @@ async function downloadSingleFile(title, transcript, format, index) {
 // ─── Core extraction & communication ──────────────────────────────────────────
 
 async function ensureContentScriptInjected(tabId) {
-  // Test if already responding
   const isLoaded = await new Promise((resolve) => {
-    chrome.tabs.sendMessage(tabId, { action: "ping" }, (res) => {
+    chrome.tabs.sendMessage(tabId, { action: "ping" }, { frameId: 0 }, (res) => {
       if (chrome.runtime.lastError || !res || !res.success) {
         resolve(false);
       } else {
@@ -243,14 +260,13 @@ async function ensureContentScriptInjected(tabId) {
 
   if (isLoaded) return true;
 
-  // Try dynamic programmatic injection
   if (chrome.scripting) {
     try {
       await chrome.scripting.executeScript({
-        target: { tabId: tabId },
+        target: { tabId: tabId, frameIds: [0] },
         files: ["content.js"]
       });
-      await new Promise(r => setTimeout(r, 250));
+      await new Promise(r => setTimeout(r, 300));
       return true;
     } catch (e) {
       console.warn("Could not inject content script:", e);
@@ -272,18 +288,22 @@ async function sendMessageToTab(message) {
 
       // Validate URL: user must be on Coursera
       if (!url.includes("coursera.org")) {
-        reject(new Error("You are not on Coursera. Please open a Coursera video lesson page first."));
+        reject(new Error("Please open a Coursera lesson page."));
         return;
       }
 
-      // Ensure content script is running
-      await ensureContentScriptInjected(tab.id);
+      try {
+        await ensureContentScriptInjected(tab.id);
+      } catch (err) {
+        console.warn("Script injection check:", err);
+      }
 
-      chrome.tabs.sendMessage(tab.id, message, (response) => {
+      // Explicitly target top-level frame (frameId: 0) to prevent port closure from iframes
+      chrome.tabs.sendMessage(tab.id, message, { frameId: 0 }, (response) => {
         if (chrome.runtime.lastError) {
           const err = chrome.runtime.lastError.message || "";
           if (err.includes("Receiving end does not exist") || err.includes("Could not establish connection")) {
-            reject(new Error("Could not connect to Coursera page. Please refresh (F5) the Coursera tab and try again."));
+            reject(new Error("Could not connect to Coursera. Please refresh (F5) the Coursera tab."));
           } else {
             reject(new Error(err));
           }
@@ -293,6 +313,33 @@ async function sendMessageToTab(message) {
       });
     });
   });
+}
+
+async function detectActiveTab() {
+  try {
+    const tabs = await new Promise(r => chrome.tabs.query({ active: true, currentWindow: true }, r));
+    if (!tabs || tabs.length === 0) {
+      updateStatus("muted", "No active browser tab.");
+      return;
+    }
+    const url = tabs[0].url || "";
+    if (!url.includes("coursera.org")) {
+      updateStatus("muted", "Open a Coursera lesson to begin.");
+      return;
+    }
+
+    if (url.includes("/lecture/") || url.includes("/supplement/")) {
+      updateStatus("ready", "Ready. Lesson page detected.");
+    } else if (url.includes("/quiz/") || url.includes("/exam/")) {
+      updateStatus("ready", "Quiz / Activity detected.");
+    } else if (url.includes("/learn/")) {
+      updateStatus("ready", "Coursera outline detected.");
+    } else {
+      updateStatus("ready", "Coursera detected.");
+    }
+  } catch {
+    updateStatus("muted", "Ready.");
+  }
 }
 
 async function extractCurrentVideo(index, silentMode = false) {
@@ -309,11 +356,11 @@ async function extractCurrentVideo(index, silentMode = false) {
     if (!response.success) {
       // Activity or Quiz detected
       if (response.reason === "is_quiz") {
-        if (skipQuizzes.checked) {
-          replaceLog(searchingEntry, `↷ Skipped Quiz/Activity: ${sanitizeFilename(response.title)}`, "skip");
+        if (!includeQuizzes.checked) {
+          replaceLog(searchingEntry, `↷ Skipped Quiz: ${sanitizeFilename(response.title)}`, "skip");
           return { success: false, reason: "quiz_skipped", isEndOfCourse: response.isEndOfCourse };
         } else {
-          replaceLog(searchingEntry, `↷ Quiz/Activity (no transcript): ${sanitizeFilename(response.title)}`, "skip");
+          replaceLog(searchingEntry, `↷ Quiz / Activity (no transcript): ${sanitizeFilename(response.title)}`, "skip");
           return { success: false, reason: "no_transcript", isEndOfCourse: response.isEndOfCourse };
         }
       }
@@ -327,14 +374,14 @@ async function extractCurrentVideo(index, silentMode = false) {
       return { success: false, reason: response.reason || "skip", isEndOfCourse: response.isEndOfCourse };
     }
 
-    // Check user content filters
+    // Check user content filters (Videos vs Readings)
     const isVideo = !response.transcript.includes("\n\n");
-    if (isVideo && !filterVideos.checked) {
-      replaceLog(searchingEntry, `↷ Skipped Video (Videos filter unchecked): ${sanitizeFilename(response.title)}`, "skip");
+    if (isVideo && !includeVideos.checked) {
+      replaceLog(searchingEntry, `↷ Skipped Video (Videos unchecked): ${sanitizeFilename(response.title)}`, "skip");
       return { success: false, reason: "filtered_video", isEndOfCourse: response.isEndOfCourse };
     }
-    if (!isVideo && !filterReadings.checked) {
-      replaceLog(searchingEntry, `↷ Skipped Reading (Readings filter unchecked): ${sanitizeFilename(response.title)}`, "skip");
+    if (!isVideo && !includeReadings.checked) {
+      replaceLog(searchingEntry, `↷ Skipped Reading (Readings unchecked): ${sanitizeFilename(response.title)}`, "skip");
       return { success: false, reason: "filtered_reading", isEndOfCourse: response.isEndOfCourse };
     }
 
@@ -348,12 +395,11 @@ async function extractCurrentVideo(index, silentMode = false) {
       index: fileIndex
     });
 
-    // Persist collected files so they survive popup close
     await saveCollectedFiles();
 
     replaceLog(searchingEntry, `✓ ${fileIndex}. ${sanitizeFilename(response.title)}`, "success");
 
-    // Only trigger immediate download in manual mode
+    // Only trigger immediate individual download in manual mode
     if (!silentMode) {
       await downloadSingleFile(response.title, response.transcript, format, fileIndex);
     }
@@ -415,8 +461,8 @@ async function runAutoMode() {
 
   if (collectedFiles.length > 0) {
     log(`\n✅ ${collectedFiles.length} transcript(s) mined. Click Download to save.`, "success");
-    downloadBtn.style.display = "flex";
-    clearBtn.style.display = "flex";
+    downloadBtn.style.display = "block";
+    await downloadAsZip(collectedFiles);
   }
 }
 
@@ -436,7 +482,7 @@ function updateCurriculumStats() {
   const selected = curriculumList.querySelectorAll("input.item-chk:checked").length;
   curriculumStats.textContent = `${selected} / ${total} selected`;
   selectedCountBadge.textContent = selected;
-  mineSelectedBtn.style.display = selected > 0 ? "flex" : "none";
+  mineSelectedBtn.style.display = selected > 0 ? "block" : "none";
 
   // Update each module header checkbox & badge
   scannedModules.forEach((mod, modIdx) => {
@@ -457,7 +503,7 @@ function updateCurriculumStats() {
 function renderCurriculum(modules) {
   curriculumList.innerHTML = "";
   if (!modules || modules.length === 0) {
-    curriculumList.innerHTML = '<div class="empty-curriculum-hint">No modules detected. Make sure you are on a Coursera course page with the course outline or syllabus visible.</div>';
+    curriculumList.innerHTML = '<div class="curriculum-empty">No modules detected. Make sure you are on a Coursera course page with the course outline or syllabus visible.</div>';
     mineSelectedBtn.style.display = "none";
     curriculumStats.textContent = "0 items";
     return;
@@ -485,12 +531,14 @@ function renderCurriculum(modules) {
       const rowEl = document.createElement("div");
       rowEl.className = "lesson-item-row";
 
-      // By default: check videos and readings, uncheck quizzes if skipQuizzes is active
-      const isQuizType = item.type === "quiz" || item.type === "exam" || item.type === "assignment";
-      const isChecked = !(skipQuizzes.checked && isQuizType);
+      // By default: check videos if includeVideos, readings if includeReadings, quizzes if includeQuizzes
+      let isChecked = true;
+      if (item.type === "video") isChecked = includeVideos.checked;
+      else if (item.type === "reading") isChecked = includeReadings.checked;
+      else if (item.type === "quiz" || item.type === "exam" || item.type === "assignment") isChecked = includeQuizzes.checked;
 
       const typeBadgeClass = `badge-${item.type}`;
-      const typeLabel = item.type.toUpperCase();
+      const typeLabel = item.type === "reading" ? "READ" : item.type === "video" ? "VID" : item.type.toUpperCase();
 
       rowEl.innerHTML = `
         <input type="checkbox" class="item-chk" 
@@ -554,7 +602,6 @@ async function runMineSelected() {
   setButtonState(true);
   logBox.innerHTML = "";
   downloadBtn.style.display = "none";
-  clearBtn.style.display = "none";
 
   log(`▶ Mining ${items.length} selected lesson(s)...`, "success");
 
@@ -583,8 +630,7 @@ async function runMineSelected() {
 
   if (collectedFiles.length > 0) {
     log(`\n✅ Finished! ${collectedFiles.length} transcript(s) collected.`, "success");
-    downloadBtn.style.display = "flex";
-    clearBtn.style.display = "flex";
+    downloadBtn.style.display = "block";
     if (autoToggle.checked) {
       await downloadAsZip(collectedFiles);
     }
@@ -597,27 +643,27 @@ scanCurriculumBtn.addEventListener("click", async () => {
   const isVisible = curriculumDrawer.style.display !== "none";
   if (isVisible && scannedModules.length > 0) {
     curriculumDrawer.style.display = "none";
-    scanCurriculumBtn.textContent = "🔍 SCAN";
+    scanCurriculumBtn.textContent = "🔍 Scan";
     return;
   }
 
   scanCurriculumBtn.disabled = true;
-  scanCurriculumBtn.textContent = "⏳ SCANNING...";
-  curriculumDrawer.style.display = "block";
+  scanCurriculumBtn.textContent = "⏳ Scanning...";
+  curriculumDrawer.style.display = "flex";
 
   try {
     const response = await sendMessageToTab({ action: "scanCurriculum" });
     if (response && response.success && response.modules) {
       scannedModules = response.modules;
       renderCurriculum(scannedModules);
-      scanCurriculumBtn.textContent = "▲ HIDE";
+      scanCurriculumBtn.textContent = "▲ Hide";
     } else {
-      curriculumList.innerHTML = '<div class="empty-curriculum-hint">Could not read syllabus. Please ensure the Coursera course page has finished loading.</div>';
-      scanCurriculumBtn.textContent = "🔍 RETRY";
+      curriculumList.innerHTML = '<div class="curriculum-empty">Could not read syllabus. Please ensure the Coursera course page has finished loading.</div>';
+      scanCurriculumBtn.textContent = "🔍 Retry";
     }
   } catch (err) {
-    curriculumList.innerHTML = `<div class="empty-curriculum-hint">Error: ${err.message}</div>`;
-    scanCurriculumBtn.textContent = "🔍 RETRY";
+    curriculumList.innerHTML = `<div class="curriculum-empty">Error: ${err.message}</div>`;
+    scanCurriculumBtn.textContent = "🔍 Retry";
   } finally {
     scanCurriculumBtn.disabled = false;
   }
@@ -625,7 +671,7 @@ scanCurriculumBtn.addEventListener("click", async () => {
 
 btnFilterAll.addEventListener("click", () => applyCurriculumFilter(() => true));
 btnFilterVideos.addEventListener("click", () => applyCurriculumFilter(t => t === "video"));
-btnFilterNoQuizzes.addEventListener("click", () => applyCurriculumFilter(t => t !== "quiz" && t !== "exam" && t !== "assignment"));
+btnFilterReadings.addEventListener("click", () => applyCurriculumFilter(t => t === "reading"));
 btnFilterNone.addEventListener("click", () => applyCurriculumFilter(() => false));
 
 mineSelectedBtn.addEventListener("click", async () => {
@@ -634,13 +680,15 @@ mineSelectedBtn.addEventListener("click", async () => {
 
 autoToggle.addEventListener("change", () => {
   if (autoToggle.checked) {
-    modeHint.textContent = "Auto: mines all lessons silently into one ZIP archive.";
+    modeTitle.textContent = "Auto-advance: On";
+    modeDesc.textContent = "Silently mines all lessons into one ZIP archive.";
+    extractBtn.textContent = "Start auto-mining";
     nextBtn.style.display = "none";
-    extractBtn.innerHTML = '<span class="btn-icon">⛏</span><span class="btn-label">START AUTO MINING</span>';
   } else {
-    modeHint.textContent = 'Manual: click Next Lesson yourself after each page.';
-    extractBtn.innerHTML = '<span class="btn-icon">⛏</span><span class="btn-label">MINE THIS LESSON</span>';
-    nextBtn.style.display = isRunning ? "flex" : "none";
+    modeTitle.textContent = "Auto-advance: Off";
+    modeDesc.textContent = "You click Next lesson yourself after each page.";
+    extractBtn.textContent = "Mine this lesson";
+    nextBtn.style.display = isRunning ? "block" : "none";
   }
 });
 
@@ -649,7 +697,6 @@ extractBtn.addEventListener("click", async () => {
   await saveCollectedFiles();
   logBox.innerHTML = "";
   downloadBtn.style.display = "none";
-  clearBtn.style.display = "none";
 
   if (autoToggle.checked) {
     await runAutoMode();
@@ -662,11 +709,11 @@ extractBtn.addEventListener("click", async () => {
 
 nextBtn.addEventListener("click", async () => {
   nextBtn.disabled = true;
-  nextBtn.textContent = "LOADING...";
+  nextBtn.textContent = "Loading...";
   const advanced = await goToNextVideo();
   if (!advanced) log("✗ Could not find Next button.", "error");
   nextBtn.disabled = false;
-  nextBtn.textContent = "NEXT LESSON →";
+  nextBtn.textContent = "Next lesson →";
 });
 
 stopBtn.addEventListener("click", () => {
@@ -675,10 +722,10 @@ stopBtn.addEventListener("click", () => {
 });
 
 downloadBtn.addEventListener("click", async () => {
-  downloadBtn.textContent = "⏳ PREPARING ZIP...";
+  downloadBtn.textContent = "⏳ Preparing ZIP...";
   downloadBtn.disabled = true;
   await downloadAsZip(collectedFiles);
-  downloadBtn.textContent = "⬇ DOWNLOAD ALL (.ZIP)";
+  downloadBtn.textContent = "⬇ Download all (.zip)";
   downloadBtn.disabled = false;
 });
 
@@ -687,10 +734,10 @@ clearBtn.addEventListener("click", async () => {
   await setStorage({ collectedFiles: "[]" });
   logBox.innerHTML = "";
   downloadBtn.style.display = "none";
-  clearBtn.style.display = "none";
-  log("Cleared. Ready to start again.");
+  logSection.style.display = "none";
 });
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 loadCollectedFiles();
+detectActiveTab();

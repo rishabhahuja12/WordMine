@@ -1,10 +1,13 @@
 # WordMine ⛏
 
-> **WordMine** is an open-source, neo-brutalist Chrome extension designed to effortlessly extract and mine Coursera video transcripts into DOCX, PDF, or TXT documents.
+> **WordMine** is an open-source, beautifully designed Chrome extension to effortlessly extract and mine Coursera video transcripts into DOCX, PDF, or TXT documents.
+> Designed with a sleek Petrol Teal modern aesthetic, granular lesson selectors, and reliable course auto-mining.
 
 ## Highlights
 - **100% Free & Unlimited**: No paywalls, no limits, no accounts, and no licence keys needed.
-- **Neo-Brutalist Light UI**: Bold high-contrast aesthetic with tactile pastel cards and buttons.
+- **Sleek Minimalist UI**: Refined Petrol Teal & Warm Stone palette, responsive cards, and tactile switches.
+- **Module & Lesson Selector**: Discover the entire course curriculum and select exactly which lessons or modules to mine.
+- **Symmetrical Content Filters**: Selectively include Videos, Readings, or Quizzes & Exams in a single click.
 - **Auto Mining**: Automatically loops through an entire course and downloads all transcripts in a single `.zip` archive.
 - **Manual Mode**: Mine individual lessons on demand with instant single-file download.
 - **Multi-Format Export**: Cleanly formatted `.docx`, `.pdf`, or `.txt` files.
