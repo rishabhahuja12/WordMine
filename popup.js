@@ -61,6 +61,7 @@ const selectedCountBadge = document.getElementById("selectedCountBadge");
 const btnAutoMarkCurrent = document.getElementById("btnAutoMarkCurrent");
 const btnBulkCompleteCourse = document.getElementById("btnBulkCompleteCourse");
 const btnHandleDiscussion = document.getElementById("btnHandleDiscussion");
+const btnBulkCompleteDiscussions = document.getElementById("btnBulkCompleteDiscussions");
 const btnAssistPeerReview = document.getElementById("btnAssistPeerReview");
 const btnAutoLoopCourse = document.getElementById("btnAutoLoopCourse");
 const btnStopAutomator = document.getElementById("btnStopAutomator");
@@ -1042,6 +1043,25 @@ if (btnHandleDiscussion) {
       }
     } catch (err) {
       if (automatorStatusNote) automatorStatusNote.textContent = `Error: ${err.message}`;
+    }
+  });
+}
+
+if (btnBulkCompleteDiscussions) {
+  btnBulkCompleteDiscussions.addEventListener("click", async () => {
+    if (automatorStatusNote) automatorStatusNote.textContent = "Starting bulk completion of all course discussions...";
+    btnBulkCompleteDiscussions.disabled = true;
+    try {
+      const res = await sendMessageToTab({ action: "markAllDiscussionsCompleted" });
+      if (res && res.success) {
+        if (automatorStatusNote) automatorStatusNote.textContent = res.message;
+      } else {
+        if (automatorStatusNote) automatorStatusNote.textContent = `Notice: ${res ? res.error : "Could not complete discussions."}`;
+      }
+    } catch (err) {
+      if (automatorStatusNote) automatorStatusNote.textContent = `Error: ${err.message}`;
+    } finally {
+      btnBulkCompleteDiscussions.disabled = false;
     }
   });
 }

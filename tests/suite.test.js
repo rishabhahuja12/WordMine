@@ -419,6 +419,9 @@ runTest('Taxonomy engine correctly classifies all 6 Coursera content archetypes'
     assert.ok(html.includes('id="btnBulkCompleteCourse"'), 'popup.html must have btnBulkCompleteCourse');
     assert.ok(js.includes('btnBulkCompleteCourse'), 'popup.js must bind btnBulkCompleteCourse');
     assert.ok(js.includes('markAllCompleted'), 'popup.js must send markAllCompleted action');
+    assert.ok(html.includes('id="btnBulkCompleteDiscussions"'), 'popup.html must have btnBulkCompleteDiscussions');
+    assert.ok(js.includes('btnBulkCompleteDiscussions'), 'popup.js must bind btnBulkCompleteDiscussions');
+    assert.ok(js.includes('markAllDiscussionsCompleted'), 'popup.js must send markAllDiscussionsCompleted action');
   });
 
   console.log('\n====================================================');

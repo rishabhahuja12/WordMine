@@ -1059,6 +1059,126 @@ async function handleDiscussionPrompt() {
   };
 }
 
+async function markAllDiscussionsCompleted(onProgress) {
+  const context = getCourseContext();
+  if (!context || !context.courseSlug) {
+    return { success: false, error: "Could not identify Coursera course. Please open a course page." };
+  }
+
+  const { courseSlug } = context;
+  if (onProgress) onProgress({ status: "loading", message: "Fetching course discussions..." });
+
+  const material = await getAllCourseItems(courseSlug);
+  if (!material || !material.linked || !material.linked["onDemandCourseMaterialItems.v2"]) {
+    return { success: false, error: "Could not retrieve course materials." };
+  }
+
+  const discussionItems = material.linked["onDemandCourseMaterialItems.v2"].filter(
+    (f) => f.contentSummary && f.contentSummary.typeName && f.contentSummary.typeName.includes("discussionPrompt")
+  );
+
+  const total = discussionItems.length;
+  if (total === 0) {
+    return { success: false, error: "No discussion prompts found in this course." };
+  }
+
+  const courseId = material.elements?.[0]?.id || await getCourseId(courseSlug);
+  if (!courseId) {
+    return { success: false, error: "Could not retrieve course ID." };
+  }
+
+  const userId = await getUserId();
+  if (!userId) {
+    return { success: false, error: "Could not retrieve user ID. Ensure you are logged into Coursera." };
+  }
+
+  const csrfToken = getCsrfToken();
+  let successCount = 0;
+  let failedCount = 0;
+  let skippedDuplicate = 0;
+
+  for (let i = 0; i < total; i++) {
+    const item = discussionItems[i];
+    try {
+      const promptUrl = `${BASE_URL}/api/onDemandDiscussionPrompts.v1/${userId}~${courseId}~${item.id}?fields=onDemandDiscussionPromptQuestions.v1(content,creatorId,createdAt,forumId,sessionId),promptType,question&includes=question`;
+      const promptRes = await courseraFetch(promptUrl);
+      if (promptRes.ok) {
+        const promptData = await promptRes.json();
+        const questionRef = promptData?.elements?.[0]?.promptType?.courseItemForumQuestionId
+          || promptData?.elements?.[0]?.question?.courseItemForumQuestionId;
+        if (questionRef) {
+          const parts = questionRef.split("~");
+          const questionId = parts[2] || parts[parts.length - 1];
+          if (questionId) {
+            const alreadyAnswered = await hasUserAnsweredDiscussion(courseId, questionId, userId);
+            if (alreadyAnswered) {
+              skippedDuplicate++;
+              successCount++;
+            } else {
+              const answerText = getRandomDiscussionResponse();
+              const answerBody = {
+                content: {
+                  typeName: "cml",
+                  definition: {
+                    dtdId: "discussion/1",
+                    value: `<co-content><text>${answerText}</text></co-content>`,
+                  },
+                },
+                courseForumQuestionId: `${courseId}~${questionId}`,
+              };
+              const postUrl = `${BASE_URL}/api/onDemandCourseForumAnswers.v1/?fields=content,forumQuestionId,parentForumAnswerId,state,creatorId,createdAt,order,courseItemForumQuestionId&includes=profiles,children,userId`;
+              const postRes = await courseraFetch(postUrl, {
+                method: "POST",
+                headers: { "x-csrf3-token": csrfToken },
+                body: JSON.stringify(answerBody),
+              });
+              if (postRes.ok || postRes.status === 201) {
+                successCount++;
+              } else {
+                failedCount++;
+              }
+            }
+          } else {
+            failedCount++;
+          }
+        } else {
+          failedCount++;
+        }
+      } else {
+        failedCount++;
+      }
+    } catch (_) {
+      failedCount++;
+    }
+
+    if (onProgress) {
+      onProgress({
+        status: "running",
+        current: i + 1,
+        total,
+        successCount,
+        failedCount,
+        message: `Processing discussions: ${i + 1} / ${total} (${successCount} succeeded, ${failedCount} failed)`
+      });
+    }
+
+    if (i + 1 < total) {
+      await sleep(1500);
+    }
+  }
+
+  return {
+    success: successCount > 0,
+    total,
+    successCount,
+    failedCount,
+    skippedDuplicate,
+    message: failedCount === 0
+      ? `Completed all ${total} discussion prompts (${skippedDuplicate} already answered).`
+      : `Processed ${total} discussions: ${successCount} completed, ${failedCount} could not be posted.`
+  };
+}
+
 function assistPeerReview() {
   try {
     const allRadios = Array.from(document.querySelectorAll('input[type="radio"], [role="radio"]'));
@@ -1761,6 +1881,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // HANDLE_DISCUSSION_PROMPT
   if (message.action === "handleDiscussionPrompt") {
     handleDiscussionPrompt()
+      .then(sendResponse)
+      .catch(err => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  // MARK_ALL_DISCUSSIONS_COMPLETED
+  if (message.action === "markAllDiscussionsCompleted") {
+    markAllDiscussionsCompleted((progress) => {
+      try {
+        chrome.runtime.sendMessage({ action: "bulkProgress", ...progress });
+      } catch (_) {}
+    })
       .then(sendResponse)
       .catch(err => sendResponse({ success: false, error: err.message }));
     return true;
