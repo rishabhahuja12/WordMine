@@ -1127,12 +1127,29 @@ if (btnSaveKey) {
   });
 }
 
-async function callAIWithKey(provider, apiKey, prompt) {
+async function callAIWithKey(provider, apiKey, prompt, customModel = null) {
   let models = [];
   let baseUrl = "";
   let headers = {};
   
-  if (provider === "gemini") {
+  if (customModel) {
+    models = [customModel];
+    if (provider === "gemini") {
+      // Fall through to general gemini setup in the loop
+    } else if (provider === "groq") {
+      baseUrl = "https://api.groq.com/openai/v1/chat/completions";
+      headers = { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };
+    } else if (provider === "grok") {
+      baseUrl = "https://api.x.ai/v1/chat/completions";
+      headers = { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };
+    } else if (provider === "openai") {
+      baseUrl = "https://api.openai.com/v1/chat/completions";
+      headers = { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };
+    } else if (provider === "mistral") {
+      baseUrl = "https://api.mistral.ai/v1/chat/completions";
+      headers = { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };
+    }
+  } else if (provider === "gemini") {
     models = ["gemini-1.5-flash", "gemini-3.8-flash"];
   } else if (provider === "groq") {
     models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
@@ -1194,7 +1211,7 @@ async function callAIWithKey(provider, apiKey, prompt) {
 }
 
 async function callAI(prompt) {
-  const data = await getStorage(["aiProvider", "apiKey"]);
+  const data = await getStorage(["aiProvider", "apiKey", "customModel"]);
   const provider = data.aiProvider || "gemini";
   let apiKey = data.apiKey || userGeminiApiKey;
   if (!apiKey && provider === "gemini" && typeof geminiApiKeyInput !== "undefined" && geminiApiKeyInput?.value?.trim()) {
@@ -1202,7 +1219,7 @@ async function callAI(prompt) {
   }
   if (!apiKey) throw new Error("Please enter your API key in Settings/Onboarding.");
   
-  return await callAIWithKey(provider, apiKey, prompt);
+  return await callAIWithKey(provider, apiKey, prompt, data.customModel);
 }
 
 if (btnAiSolveQuiz) {
@@ -1582,15 +1599,17 @@ const settingsGearBtn = document.getElementById('settingsGearBtn');
 const settingsPanel = document.getElementById('settingsPanel');
 const settingsProvider = document.getElementById('settingsProvider');
 const settingsApiKey = document.getElementById('settingsApiKey');
+const settingsCustomModel = document.getElementById('settingsCustomModel');
 const btnSaveSettings = document.getElementById('btnSaveSettings');
 const btnCloseSettings = document.getElementById('btnCloseSettings');
 const settingsError = document.getElementById('settingsError');
 const providerBadge = document.getElementById('providerBadge');
 
 async function loadAndShowSettings() {
-  const data = await getStorage(['aiProvider', 'apiKey']);
+  const data = await getStorage(['aiProvider', 'apiKey', 'customModel']);
   if (settingsProvider && data.aiProvider) settingsProvider.value = data.aiProvider;
   if (settingsApiKey && data.apiKey) settingsApiKey.value = data.apiKey;
+  if (settingsCustomModel) settingsCustomModel.value = data.customModel || '';
   if (settingsPanel) settingsPanel.style.display = 'block';
 }
 
@@ -1625,6 +1644,7 @@ if (btnSaveSettings) {
   btnSaveSettings.addEventListener('click', async () => {
     const provider = settingsProvider ? settingsProvider.value : 'gemini';
     const key = settingsApiKey ? settingsApiKey.value.trim() : '';
+    const customModel = settingsCustomModel ? settingsCustomModel.value.trim() : '';
     if (!key) {
       if (settingsError) { settingsError.textContent = 'Please enter an API key.'; settingsError.style.display = 'block'; }
       return;
@@ -1633,8 +1653,8 @@ if (btnSaveSettings) {
     btnSaveSettings.textContent = 'Validating...';
     btnSaveSettings.disabled = true;
     try {
-      await callAIWithKey(provider, key, 'Hello, respond with one word: OK');
-      await setStorage({ aiProvider: provider, apiKey: key });
+      await callAIWithKey(provider, key, 'Hello, respond with one word: OK', customModel);
+      await setStorage({ aiProvider: provider, apiKey: key, customModel: customModel });
       updateProviderBadge(provider);
       if (settingsPanel) settingsPanel.style.display = 'none';
       updateStatus('ready', 'Provider updated: ' + provider);
