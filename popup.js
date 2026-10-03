@@ -1437,8 +1437,16 @@ if (btnAiSmartAuto) {
       } catch (e) {
         console.warn("Could not read text, relying purely on Vision.");
       }
+      const universalVisionToggle = document.getElementById("universalVisionToggle");
+      const useVision = universalVisionToggle ? universalVisionToggle.checked : true;
       
-      const imgData = await captureScreen();
+      let imgData = null;
+      if (useVision) {
+        showAiOutput("Gathering page text and taking visual screenshot...");
+        imgData = await captureScreen();
+      } else {
+        showAiOutput("Gathering page text (Screenshot disabled)...");
+      }
       
       const customPromptVal = universalCustomPrompt ? universalCustomPrompt.value.trim() : "";
       let finalPrompt = "";
@@ -1460,7 +1468,7 @@ CRITICAL FORMATTING RULES:
 - ALWAYS use plain text (e.g. A / B, SUM(...), ->, =>).
 - Use standard markdown tables and dash bullets.
 
-Analyze the webpage text context and the screenshot (if applicable) to fulfill this follow-up instruction precisely.
+Analyze the webpage text context${useVision ? " and the screenshot" : ""} to fulfill this follow-up instruction precisely.
 
 Webpage Text Context:
 ${text ? text : "(No text available)"}`;
@@ -1476,17 +1484,17 @@ CRITICAL FORMATTING RULES:
 - ALWAYS use plain text (e.g. A / B, SUM(...), ->, =>).
 - Use standard markdown tables and dash bullets.
 
-Analyze the provided webpage text context and the screenshot (if applicable) to fulfill the instruction precisely.
+Analyze the provided webpage text context${useVision ? " and the screenshot" : ""} to fulfill the instruction precisely.
 
 Webpage Text Context:
 ${text ? text : "(No text available)"}`;
       } else {
         showAiOutput("Context gathered! Analyzing page structure and intent automatically...");
-        finalPrompt = `You are a universal intelligent assistant. I am providing you with the text of the webpage I am on, as well as a screenshot of what I am looking at right now. 
+        finalPrompt = `You are a universal intelligent assistant. I am providing you with the text of the webpage I am on${useVision ? ", as well as a screenshot of what I am looking at right now" : ""}. 
         
 Please automatically determine what I need based on context:
-1) If the screen clearly shows a quiz, exam, or multiple-choice questions, solve them step-by-step and provide the correct answers.
-2) If the screen shows a visual chart, graph, diagram, or piece of code, explain it in detail.
+1) If the text${useVision ? " or screen" : ""} clearly shows a quiz, exam, or multiple-choice questions, solve them step-by-step and provide the correct answers.
+2) If it shows a visual chart, graph, diagram, or piece of code, explain it in detail.
 3) If it's a general article, blog, or document, provide a clean executive summary.
 
 CRITICAL FORMATTING RULES:
@@ -1494,7 +1502,7 @@ CRITICAL FORMATTING RULES:
 - ALWAYS use plain text (e.g. (A+B)/C, SUM(...), ->, =>).
 - Use standard markdown tables and dash bullets.
 
-Analyze both the text and the screenshot (if applicable) and give your answer directly.
+Analyze ${useVision ? "both the text and the screenshot" : "the text context"} and give your answer directly.
 
 Webpage Text Context:
 ${text ? text : "(No text available)"}`;
