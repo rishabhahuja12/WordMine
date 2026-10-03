@@ -1121,16 +1121,46 @@ function showAiOutput(text, isError = false) {
     let html = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     
     // LaTeX math arrows & common symbols
-    html = html.replace(/\$\\rightarrow\$/g, "→");
-    html = html.replace(/\$\\Rightarrow\$/g, "⇒");
-    html = html.replace(/\$\\leftarrow\$/g, "←");
-    html = html.replace(/\$\\Leftarrow\$/g, "⇐");
+    html = html.replace(/\$\\rightarrow\$/g, "→").replace(/\\rightarrow/g, "→");
+    html = html.replace(/\$\\Rightarrow\$/g, "⇒").replace(/\\Rightarrow/g, "⇒");
+    html = html.replace(/\$\\leftarrow\$/g, "←").replace(/\\leftarrow/g, "←");
+    html = html.replace(/\$\\Leftarrow\$/g, "⇐").replace(/\\Leftarrow/g, "⇐");
+
+    // Block Math and Block Code
+    html = html.replace(/\$\$(.*?)\$\$/gs, '<div style="background:var(--bg-main); padding:8px; border-radius:6px; margin:8px 0; font-family:monospace; text-align:center; overflow-x:auto;">$1</div>');
+    html = html.replace(/```([\s\S]*?)```/g, '<div style="background:var(--bg-main); padding:8px; border-radius:6px; margin:8px 0; font-family:monospace; font-size:11px; white-space:pre-wrap; overflow-x:auto;">$1</div>');
+
+    // Inline Math
+    html = html.replace(/\$([^\$\n]+)\$/g, '<span style="font-family:monospace; color:var(--brand-main);">$1</span>');
 
     // Headers
     html = html.replace(/^### (.*$)/gm, '<strong style="font-size:1.05em; color:var(--brand-main); display:block; margin-top:8px;">$1</strong>');
     html = html.replace(/^## (.*$)/gm, '<strong style="font-size:1.15em; color:var(--brand-main); display:block; margin-top:10px;">$1</strong>');
     html = html.replace(/^# (.*$)/gm, '<strong style="font-size:1.25em; color:var(--brand-main); display:block; margin-top:12px;">$1</strong>');
     
+    // Tables (Basic matching for Markdown tables)
+    // Convert lines starting and ending with | to table rows
+    let inTable = false;
+    let rows = html.split('\n');
+    for (let i = 0; i < rows.length; i++) {
+      if (rows[i].trim().match(/^\|(.*)\|$/)) {
+        let cells = rows[i].trim().slice(1, -1).split('|');
+        // Check if it's a separator row (---)
+        if (cells[0].trim().match(/^[-:\s]+$/)) {
+          rows[i] = ''; // skip rendering separator
+        } else {
+          let rowHtml = cells.map(c => `<td style="border:1px solid var(--border-subtle); padding:4px 8px;">${c.trim()}</td>`).join('');
+          rows[i] = (inTable ? '' : '<table style="width:100%; border-collapse:collapse; margin:8px 0; font-size:11px;">') + '<tr>' + rowHtml + '</tr>';
+          inTable = true;
+        }
+      } else if (inTable) {
+        rows[i-1] += '</table>';
+        inTable = false;
+      }
+    }
+    if (inTable) rows[rows.length-1] += '</table>';
+    html = rows.join('\n');
+
     // Bullets (Dash, Asterisk, or dot) -> must process before bold/italic so asterisks aren't consumed
     html = html.replace(/^[\*\-•]\s+(.*$)/gm, '<span style="display:block; margin-left:12px;">• $1</span>');
 
@@ -1140,6 +1170,10 @@ function showAiOutput(text, isError = false) {
     
     // Inline code
     html = html.replace(/`([^`\n]+)`/g, '<code style="background:#e5e7eb; padding:2px 4px; border-radius:4px; font-family:monospace; color:#0f172a;">$1</code>');
+    
+    // Newlines to <br> for regular text (only if not inside block tags)
+    // Actually, setting white-space:pre-wrap on the container is safer, but aiOutputBox doesn't have it by default.
+    // Let's just wrap it.
     
     aiOutputBox.innerHTML = html;
 
@@ -1385,6 +1419,11 @@ if (btnAiSmartAuto) {
 USER'S INSTRUCTION:
 ${customPromptVal}
 
+CRITICAL FORMATTING RULES:
+- NEVER use LaTeX for math (e.g. \\frac, \\sum, \\rightarrow, $...$, $$...$$).
+- ALWAYS use plain text (e.g. A / B, SUM(...), ->, =>).
+- Use standard markdown tables and dash bullets.
+
 Analyze the provided webpage text context and the screenshot (if applicable) to fulfill the instruction precisely.
 
 Webpage Text Context:
@@ -1397,6 +1436,11 @@ Please automatically determine what I need based on context:
 1) If the screen clearly shows a quiz, exam, or multiple-choice questions, solve them step-by-step and provide the correct answers.
 2) If the screen shows a visual chart, graph, diagram, or piece of code, explain it in detail.
 3) If it's a general article, blog, or document, provide a clean executive summary.
+
+CRITICAL FORMATTING RULES:
+- NEVER use LaTeX for math (e.g. \\frac, \\sum, \\rightarrow, $...$, $$...$$).
+- ALWAYS use plain text (e.g. (A+B)/C, SUM(...), ->, =>).
+- Use standard markdown tables and dash bullets.
 
 Analyze both the text and the screenshot (if applicable) and give your answer directly.
 
