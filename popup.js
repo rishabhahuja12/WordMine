@@ -1133,59 +1133,60 @@ function showAiOutput(text, isError = false) {
     let html = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     
     // LaTeX math arrows & common symbols
-    html = html.replace(/\$\\rightarrow\$/g, "→").replace(/\\rightarrow/g, "→");
-    html = html.replace(/\$\\Rightarrow\$/g, "⇒").replace(/\\Rightarrow/g, "⇒");
-    html = html.replace(/\$\\leftarrow\$/g, "←").replace(/\\leftarrow/g, "←");
-    html = html.replace(/\$\\Leftarrow\$/g, "⇐").replace(/\\Leftarrow/g, "⇐");
+    html = html.replace(/\$\\rightarrow\$/g, "→").replace(/\\rightarrow/g, "→").replace(/-&gt;/g, "→");
+    html = html.replace(/\$\\Rightarrow\$/g, "⇒").replace(/\\Rightarrow/g, "⇒").replace(/=&gt;/g, "⇒");
+    html = html.replace(/\$\\leftarrow\$/g, "←").replace(/\\leftarrow/g, "←").replace(/&lt;-/g, "←");
+    html = html.replace(/\$\\Leftarrow\$/g, "⇐").replace(/\\Leftarrow/g, "⇐").replace(/&lt;=/g, "⇐");
+
+    // Horizontal Rule
+    html = html.replace(/^---+$/gm, '<hr style="border: 0; height: 1px; background: linear-gradient(to right, transparent, var(--border-card), transparent); margin: 16px 0;" />');
 
     // Block Math and Block Code
-    html = html.replace(/\$\$(.*?)\$\$/gs, '<div style="background:var(--bg-main); padding:8px; border-radius:6px; margin:8px 0; font-family:monospace; text-align:center; overflow-x:auto;">$1</div>');
-    html = html.replace(/```([\s\S]*?)```/g, '<div style="background:var(--bg-main); padding:8px; border-radius:6px; margin:8px 0; font-family:monospace; font-size:11px; white-space:pre-wrap; overflow-x:auto;">$1</div>');
+    html = html.replace(/\$\$(.*?)\$\$/gs, '<div style="background:#0F172A; color:#E2E8F0; padding:10px 12px; border-radius:6px; margin:8px 0; font-family:\'Fira Code\', monospace; text-align:center; overflow-x:auto; font-size:11.5px; box-shadow:inset 0 2px 4px rgba(0,0,0,0.2); border:1px solid #1E293B;">$1</div>');
+    html = html.replace(/```([\s\S]*?)```/g, '<div style="background:#0F172A; color:#E2E8F0; padding:10px 12px; border-radius:6px; margin:8px 0; font-family:\'Fira Code\', monospace; font-size:11.5px; white-space:pre-wrap; overflow-x:auto; box-shadow:inset 0 2px 4px rgba(0,0,0,0.2); border:1px solid #1E293B;">$1</div>');
 
     // Inline Math
-    html = html.replace(/\$([^\$\n]+)\$/g, '<span style="font-family:monospace; color:var(--brand-main);">$1</span>');
+    html = html.replace(/\$([^\$\n]+)\$/g, '<span style="font-family:\'Fira Code\', monospace; color:var(--teal-primary); background:rgba(31,92,107,0.08); padding:0 4px; border-radius:4px;">$1</span>');
 
-    // Headers
-    html = html.replace(/^### (.*$)/gm, '<strong style="font-size:1.05em; color:var(--brand-main); display:block; margin-top:8px;">$1</strong>');
-    html = html.replace(/^## (.*$)/gm, '<strong style="font-size:1.15em; color:var(--brand-main); display:block; margin-top:10px;">$1</strong>');
-    html = html.replace(/^# (.*$)/gm, '<strong style="font-size:1.25em; color:var(--brand-main); display:block; margin-top:12px;">$1</strong>');
+    // Headers (Dynamic 1 to 6 hashes)
+    html = html.replace(/^(#{1,6})\s+(.*$)/gm, (match, hashes, text) => {
+      let size = 1.3 - (hashes.length * 0.05);
+      return `<strong style="font-size:${size}em; color:var(--teal-primary); display:block; margin: 14px 0 6px 0; padding-left:8px; border-left:3px solid var(--teal-primary); font-weight:700; line-height:1.2;">${text}</strong>`;
+    });
     
     // Tables (Basic matching for Markdown tables)
-    // Convert lines starting and ending with | to table rows
     let inTable = false;
     let rows = html.split('\n');
     for (let i = 0; i < rows.length; i++) {
       if (rows[i].trim().match(/^\|(.*)\|$/)) {
         let cells = rows[i].trim().slice(1, -1).split('|');
-        // Check if it's a separator row (---)
         if (cells[0].trim().match(/^[-:\s]+$/)) {
-          rows[i] = ''; // skip rendering separator
+          rows[i] = '<!--TSEP-->'; 
         } else {
-          let rowHtml = cells.map(c => `<td style="border:1px solid var(--border-subtle); padding:4px 8px;">${c.trim()}</td>`).join('');
-          rows[i] = (inTable ? '' : '<table style="width:100%; border-collapse:collapse; margin:8px 0; font-size:11px;">') + '<tr>' + rowHtml + '</tr>';
+          let rowHtml = cells.map((c, idx) => `<td style="border-bottom:1px solid var(--border-subtle); padding:6px 10px; color:var(--text-main); font-weight:${inTable ? '400' : '600'}; background:${inTable ? 'transparent' : 'rgba(0,0,0,0.03)'};">${c.trim()}</td>`).join('');
+          rows[i] = (inTable ? '' : '<div style="border-radius:6px; overflow:hidden; border:1px solid var(--border-subtle); margin:10px 0;"><table style="width:100%; border-collapse:collapse; font-size:11.5px; text-align:left;">') + '<tr>' + rowHtml + '</tr>';
           inTable = true;
         }
       } else if (inTable) {
-        rows[i-1] += '</table>';
+        rows[i-1] += '</table></div>';
         inTable = false;
       }
     }
-    if (inTable) rows[rows.length-1] += '</table>';
-    html = rows.join('\n');
+    if (inTable) rows[rows.length-1] += '</table></div>';
+    html = rows.join('\n').replace(/\n<!--TSEP-->\n/g, '\n').replace(/<\/tr>\n<tr>/g, '</tr><tr>');
 
-    // Bullets (Dash, Asterisk, or dot) -> must process before bold/italic so asterisks aren't consumed
-    html = html.replace(/^[\*\-•]\s+(.*$)/gm, '<span style="display:block; margin-left:12px;">• $1</span>');
+    // Bullets (Dash, Asterisk, or dot)
+    html = html.replace(/^[\*\-•]\s+(.*$)/gm, '<span style="display:block; position:relative; padding-left:14px; margin-bottom:6px;"><span style="position:absolute; left:0; color:var(--teal-primary); font-weight:bold;">•</span> $1</span>');
 
-    // Bold & Italic (restrict to non-newlines to prevent bleeding across paragraphs)
-    html = html.replace(/\*\*([^\*\n]+)\*\*/g, '<strong>$1</strong>');
-    html = html.replace(/\*([^\*\n]+)\*/g, '<em>$1</em>');
+    // Bold & Italic
+    html = html.replace(/\*\*([^\*\n]+)\*\*/g, '<strong style="color:var(--teal-primary); font-weight:700;">$1</strong>');
+    html = html.replace(/\*([^\*\n]+)\*/g, '<em style="color:#475569;">$1</em>');
     
     // Inline code
-    html = html.replace(/`([^`\n]+)`/g, '<code style="background:#e5e7eb; padding:2px 4px; border-radius:4px; font-family:monospace; color:#0f172a;">$1</code>');
+    html = html.replace(/`([^`\n]+)`/g, '<code style="background:#E2E8F0; padding:2px 5px; border-radius:5px; font-family:\'Fira Code\', monospace; font-size:11px; color:#0F172A; font-weight:600;">$1</code>');
     
-    // Newlines to <br> for regular text (only if not inside block tags)
-    // Actually, setting white-space:pre-wrap on the container is safer, but aiOutputBox doesn't have it by default.
-    // Let's just wrap it.
+    // Inject wrap class for line-height
+    html = `<div style="line-height:1.6; color:#334155; font-size:12.5px;">${html}</div>`;
     
     aiOutputBox.innerHTML = html;
 
