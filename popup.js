@@ -83,10 +83,7 @@ const copyBtnLabel = document.getElementById("copyBtnLabel");
 const aiModeSelect = document.getElementById("aiModeSelect");
 const courseraAiActions = document.getElementById("courseraAiActions");
 const universalAiActions = document.getElementById("universalAiActions");
-const btnAiSummarizePage = document.getElementById("btnAiSummarizePage");
-const btnAiExplainPage = document.getElementById("btnAiExplainPage");
-const btnAiSolveScreen = document.getElementById("btnAiSolveScreen");
-const btnAiExplainScreen = document.getElementById("btnAiExplainScreen");
+const btnAiSmartAuto = document.getElementById("btnAiSmartAuto");
 
 // Status Bar
 const statusIndicator = document.getElementById("statusIndicator");
@@ -1211,56 +1208,74 @@ async function callAIWithKey(provider, apiKey, prompt, customModel = null, image
   }
 
   let lastError = null;
+  const apiKeys = apiKey.split(',').map(k => k.trim()).filter(Boolean);
+  if (apiKeys.length === 0) throw new Error("No API key provided.");
 
-  for (const model of models) {
-    try {
-      let url, body;
-      if (provider === "gemini") {
-        url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-        headers = { "Content-Type": "application/json" };
-        body = { contents: [{ parts: [{ text: prompt }] }] };
-        if (imageDataUrl) {
-          const base64Data = imageDataUrl.split(',')[1];
-          body.contents[0].parts.push({
-            inlineData: { mimeType: "image/jpeg", data: base64Data }
-          });
-        }
-      } else {
-        url = baseUrl;
-        let contentArray = [];
-        if (imageDataUrl) {
-          contentArray = [
-            { type: "text", text: prompt },
-            { type: "image_url", image_url: { url: imageDataUrl } }
-          ];
-        } else {
-          contentArray = prompt;
-        }
-        body = { model: model, messages: [{ role: "user", content: contentArray }] };
-      }
-
-      const response = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
-      if (response.status === 429) {
-        if (typeof updateStatus === "function") updateStatus("warning", `Rate limit hit on ${provider} — change provider in Settings`);
-        throw new Error(`Rate limit hit on ${provider} — change provider in Settings`);
-      }
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error?.message || `API request failed (${response.status}) on model ${model}`);
-      }
-      const data = await response.json();
-      
-      if (provider === "gemini") {
-        const candidate = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (candidate) return candidate;
-      } else {
-        const candidate = data.choices?.[0]?.message?.content;
-        if (candidate) return candidate;
-      }
-    } catch (e) {
-      if (e.message.includes("Rate limit hit")) throw e;
-      lastError = e;
+  for (const currentKey of apiKeys) {
+    // For non-gemini providers, we must update the bearer token
+    if (provider !== "gemini") {
+      headers["Authorization"] = `Bearer ${currentKey}`;
     }
+
+    for (const model of models) {
+      try {
+        let url, body;
+        if (provider === "gemini") {
+          url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${currentKey}`;
+          headers = { "Content-Type": "application/json" };
+          body = { contents: [{ parts: [{ text: prompt }] }] };
+          if (imageDataUrl) {
+            const base64Data = imageDataUrl.split(',')[1];
+            body.contents[0].parts.push({
+              inlineData: { mimeType: "image/jpeg", data: base64Data }
+            });
+          }
+        } else {
+          url = baseUrl;
+          let contentArray = [];
+          if (imageDataUrl) {
+            contentArray = [
+              { type: "text", text: prompt },
+              { type: "image_url", image_url: { url: imageDataUrl } }
+            ];
+          } else {
+            contentArray = prompt;
+          }
+          body = { model: model, messages: [{ role: "user", content: contentArray }] };
+        }
+
+        const response = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+        
+        if (response.status === 429 || response.status === 503) {
+          throw new Error("RATE_LIMIT_RETRY");
+        }
+        
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.error?.message || `API request failed (${response.status}) on model ${model}`);
+        }
+        
+        const data = await response.json();
+        
+        if (provider === "gemini") {
+          const candidate = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (candidate) return candidate;
+        } else {
+          const candidate = data.choices?.[0]?.message?.content;
+          if (candidate) return candidate;
+        }
+      } catch (e) {
+        lastError = e;
+        if (e.message === "RATE_LIMIT_RETRY") {
+          break; // Break the model loop -> go to the NEXT API KEY in the outer loop
+        }
+      }
+    }
+  }
+
+  if (lastError && lastError.message === "RATE_LIMIT_RETRY") {
+    if (typeof updateStatus === "function") updateStatus("warning", `Rate limit hit on all provided keys for ${provider}`);
+    throw new Error(`Rate limit hit on all provided keys. Please add more keys or wait.`);
   }
 
   throw lastError || new Error(`Failed to generate response from ${provider} API.`);
@@ -1291,36 +1306,6 @@ async function getUniversalPageText() {
   return res[0].result.substring(0, 15000);
 }
 
-if (btnAiSummarizePage) {
-  btnAiSummarizePage.addEventListener("click", async () => {
-    showAiOutput("Reading webpage content...");
-    try {
-      const text = await getUniversalPageText();
-      showAiOutput(`Read webpage (${text.length} characters). Summarizing...`);
-      const prompt = "Please provide a concise, well-structured summary of the following webpage text:\n\n" + text;
-      const res = await callAI(prompt);
-      showAiOutput(res);
-    } catch (err) {
-      showAiOutput(err.message, true);
-    }
-  });
-}
-
-if (btnAiExplainPage) {
-  btnAiExplainPage.addEventListener("click", async () => {
-    showAiOutput("Reading webpage content...");
-    try {
-      const text = await getUniversalPageText();
-      showAiOutput(`Read webpage (${text.length} characters). Generating explanation...`);
-      const prompt = "Please simplify and explain the main concepts and topics discussed in this webpage text in an easy-to-understand way:\n\n" + text;
-      const res = await callAI(prompt);
-      showAiOutput(res);
-    } catch (err) {
-      showAiOutput(err.message, true);
-    }
-  });
-}
-
 async function captureScreen() {
   return new Promise((resolve, reject) => {
     chrome.tabs.captureVisibleTab(null, { format: "jpeg", quality: 60 }, (dataUrl) => {
@@ -1333,39 +1318,39 @@ async function captureScreen() {
   });
 }
 
-if (btnAiSolveScreen) {
-  btnAiSolveScreen.addEventListener("click", async () => {
-    showAiOutput("Capturing visible screen...");
+if (btnAiSmartAuto) {
+  btnAiSmartAuto.addEventListener("click", async () => {
+    showAiOutput("Gathering page text and visual context...");
     try {
-      const imgData = await captureScreen();
-      showAiOutput("Screen captured. Analyzing image for questions or quizzes...");
-      const prompt = "Please look at this screenshot. If you see any quiz questions, multiple choice questions, or tasks, solve them step-by-step. Provide the question and the correct answer clearly.";
-      const res = await callAI(prompt, imgData);
-      showAiOutput(res);
-    } catch (err) {
-      if (err.message.includes("does not support")) {
-         showAiOutput("Your current AI Provider may not support vision/images. Please switch to Gemini or OpenAI in Settings.", true);
-      } else {
-         showAiOutput("Vision Error: " + err.message, true);
+      let text = "";
+      try {
+        text = await getUniversalPageText();
+      } catch (e) {
+        console.warn("Could not read text, relying purely on Vision.");
       }
-    }
-  });
-}
-
-if (btnAiExplainScreen) {
-  btnAiExplainScreen.addEventListener("click", async () => {
-    showAiOutput("Capturing visible screen...");
-    try {
+      
       const imgData = await captureScreen();
-      showAiOutput("Screen captured. Extracting text and analyzing diagrams...");
-      const prompt = "Analyze this screenshot. Explain what is happening, extract any important text, and describe any charts, diagrams, or UI elements visible.";
+      showAiOutput("Context gathered! Analyzing page structure and intent automatically...");
+      
+      const prompt = `You are a universal intelligent assistant. I am providing you with the text of the webpage I am on, as well as a screenshot of what I am looking at right now. 
+      
+Please automatically determine what I need based on context:
+1) If the screen clearly shows a quiz, exam, or multiple-choice questions, solve them step-by-step and provide the correct answers.
+2) If the screen shows a visual chart, graph, diagram, or piece of code, explain it in detail.
+3) If it's a general article, blog, or document, provide a clean executive summary.
+
+Analyze both the text and the screenshot (if applicable) and give your answer directly.
+
+Webpage Text Context:
+${text ? text : "(No text available)"}`;
+
       const res = await callAI(prompt, imgData);
       showAiOutput(res);
     } catch (err) {
       if (err.message.includes("does not support")) {
-         showAiOutput("Your current AI Provider may not support vision/images. Please switch to Gemini or OpenAI in Settings.", true);
+         showAiOutput("Your current AI Provider may not support vision/images. Please switch to Gemini or OpenAI in Settings, or check your API key.", true);
       } else {
-         showAiOutput("Vision Error: " + err.message, true);
+         showAiOutput("Smart Auto Error: " + err.message, true);
       }
     }
   });
