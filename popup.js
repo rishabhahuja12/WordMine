@@ -85,6 +85,8 @@ const courseraAiActions = document.getElementById("courseraAiActions");
 const universalAiActions = document.getElementById("universalAiActions");
 const btnAiSummarizePage = document.getElementById("btnAiSummarizePage");
 const btnAiExplainPage = document.getElementById("btnAiExplainPage");
+const btnAiSolveScreen = document.getElementById("btnAiSolveScreen");
+const btnAiExplainScreen = document.getElementById("btnAiExplainScreen");
 
 // Status Bar
 const statusIndicator = document.getElementById("statusIndicator");
@@ -1166,7 +1168,7 @@ if (btnSaveKey) {
   });
 }
 
-async function callAIWithKey(provider, apiKey, prompt, customModel = null) {
+async function callAIWithKey(provider, apiKey, prompt, customModel = null, imageDataUrl = null) {
   let models = [];
   let baseUrl = "";
   let headers = {};
@@ -1217,9 +1219,24 @@ async function callAIWithKey(provider, apiKey, prompt, customModel = null) {
         url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
         headers = { "Content-Type": "application/json" };
         body = { contents: [{ parts: [{ text: prompt }] }] };
+        if (imageDataUrl) {
+          const base64Data = imageDataUrl.split(',')[1];
+          body.contents[0].parts.push({
+            inlineData: { mimeType: "image/jpeg", data: base64Data }
+          });
+        }
       } else {
         url = baseUrl;
-        body = { model: model, messages: [{ role: "user", content: prompt }] };
+        let contentArray = [];
+        if (imageDataUrl) {
+          contentArray = [
+            { type: "text", text: prompt },
+            { type: "image_url", image_url: { url: imageDataUrl } }
+          ];
+        } else {
+          contentArray = prompt;
+        }
+        body = { model: model, messages: [{ role: "user", content: contentArray }] };
       }
 
       const response = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
@@ -1249,7 +1266,7 @@ async function callAIWithKey(provider, apiKey, prompt, customModel = null) {
   throw lastError || new Error(`Failed to generate response from ${provider} API.`);
 }
 
-async function callAI(prompt) {
+async function callAI(prompt, imageDataUrl = null) {
   const data = await getStorage(["aiProvider", "apiKey", "customModel"]);
   const provider = data.aiProvider || "gemini";
   let apiKey = data.apiKey || userGeminiApiKey;
@@ -1258,7 +1275,7 @@ async function callAI(prompt) {
   }
   if (!apiKey) throw new Error("Please enter your API key in Settings/Onboarding.");
   
-  return await callAIWithKey(provider, apiKey, prompt, data.customModel);
+  return await callAIWithKey(provider, apiKey, prompt, data.customModel, imageDataUrl);
 }
 
 async function getUniversalPageText() {
@@ -1300,6 +1317,56 @@ if (btnAiExplainPage) {
       showAiOutput(res);
     } catch (err) {
       showAiOutput(err.message, true);
+    }
+  });
+}
+
+async function captureScreen() {
+  return new Promise((resolve, reject) => {
+    chrome.tabs.captureVisibleTab(null, { format: "jpeg", quality: 60 }, (dataUrl) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+      } else {
+        resolve(dataUrl);
+      }
+    });
+  });
+}
+
+if (btnAiSolveScreen) {
+  btnAiSolveScreen.addEventListener("click", async () => {
+    showAiOutput("Capturing visible screen...");
+    try {
+      const imgData = await captureScreen();
+      showAiOutput("Screen captured. Analyzing image for questions or quizzes...");
+      const prompt = "Please look at this screenshot. If you see any quiz questions, multiple choice questions, or tasks, solve them step-by-step. Provide the question and the correct answer clearly.";
+      const res = await callAI(prompt, imgData);
+      showAiOutput(res);
+    } catch (err) {
+      if (err.message.includes("does not support")) {
+         showAiOutput("Your current AI Provider may not support vision/images. Please switch to Gemini or OpenAI in Settings.", true);
+      } else {
+         showAiOutput("Vision Error: " + err.message, true);
+      }
+    }
+  });
+}
+
+if (btnAiExplainScreen) {
+  btnAiExplainScreen.addEventListener("click", async () => {
+    showAiOutput("Capturing visible screen...");
+    try {
+      const imgData = await captureScreen();
+      showAiOutput("Screen captured. Extracting text and analyzing diagrams...");
+      const prompt = "Analyze this screenshot. Explain what is happening, extract any important text, and describe any charts, diagrams, or UI elements visible.";
+      const res = await callAI(prompt, imgData);
+      showAiOutput(res);
+    } catch (err) {
+      if (err.message.includes("does not support")) {
+         showAiOutput("Your current AI Provider may not support vision/images. Please switch to Gemini or OpenAI in Settings.", true);
+      } else {
+         showAiOutput("Vision Error: " + err.message, true);
+      }
     }
   });
 }
