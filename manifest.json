@@ -5,11 +5,14 @@
   "description": "Effortlessly mine and save Coursera video transcripts as DOCX, PDF, or TXT files directly from your browser.",
 
   "permissions": [
-    "storage"
+    "storage",
+    "activeTab",
+    "scripting"
   ],
 
   "host_permissions": [
-    "https://www.coursera.org/*"
+    "https://*.coursera.org/*",
+    "https://coursera.org/*"
   ],
 
   "action": {
@@ -23,7 +26,9 @@
 
   "content_scripts": [
     {
-      "matches": ["https://www.coursera.org/learn/*"],
+      "matches": [
+        "https://*.coursera.org/*"
+      ],
       "js": ["content.js"],
       "run_at": "document_idle"
     }
@@ -38,7 +43,7 @@
   "web_accessible_resources": [
     {
       "resources": ["jszip.min.js", "docx.min.js", "html2pdf.min.js", "pdfobject.min.js"],
-      "matches": ["https://www.coursera.org/*"]
+      "matches": ["https://*.coursera.org/*"]
     }
   ]
 }

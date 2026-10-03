@@ -214,16 +214,65 @@ async function downloadSingleFile(title, transcript, format, index) {
 
 // ─── Core extraction ──────────────────────────────────────────────────────────
 
+async function ensureContentScriptInjected(tabId) {
+  // Test if already responding
+  const isLoaded = await new Promise((resolve) => {
+    chrome.tabs.sendMessage(tabId, { action: "ping" }, (res) => {
+      if (chrome.runtime.lastError || !res || !res.success) {
+        resolve(false);
+      } else {
+        resolve(true);
+      }
+    });
+  });
+
+  if (isLoaded) return true;
+
+  // Try dynamic programmatic injection
+  if (chrome.scripting) {
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId: tabId },
+        files: ["content.js"]
+      });
+      // Short delay for event listener registration
+      await new Promise(r => setTimeout(r, 250));
+      return true;
+    } catch (e) {
+      console.warn("Could not inject content script:", e);
+    }
+  }
+  return false;
+}
+
 async function sendMessageToTab(message) {
   return new Promise((resolve, reject) => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
       if (!tabs || tabs.length === 0) {
-        reject(new Error("No active tab found"));
+        reject(new Error("No active browser tab found."));
         return;
       }
-      chrome.tabs.sendMessage(tabs[0].id, message, (response) => {
+
+      const tab = tabs[0];
+      const url = tab.url || "";
+
+      // Validate URL: user must be on Coursera
+      if (!url.includes("coursera.org")) {
+        reject(new Error("You are not on Coursera. Please open a Coursera video lesson page first."));
+        return;
+      }
+
+      // Ensure content script is running
+      await ensureContentScriptInjected(tab.id);
+
+      chrome.tabs.sendMessage(tab.id, message, (response) => {
         if (chrome.runtime.lastError) {
-          reject(new Error(chrome.runtime.lastError.message));
+          const err = chrome.runtime.lastError.message || "";
+          if (err.includes("Receiving end does not exist") || err.includes("Could not establish connection")) {
+            reject(new Error("Could not connect to Coursera page. Please refresh (F5) the Coursera tab and try again."));
+          } else {
+            reject(new Error(err));
+          }
           return;
         }
         resolve(response);
@@ -239,15 +288,17 @@ async function extractCurrentVideo(index, silentMode = false) {
     const response = await sendMessageToTab({ action: "getTranscript" });
 
     if (!response) {
-      replaceLog(searchingEntry, "✗ Could not connect to page. Make sure you are on a Coursera video page. Please refresh the current page and try again.", "error");
+      replaceLog(searchingEntry, "✗ Could not connect to Coursera. Please refresh (F5) the Coursera page and try again.", "error");
       return { success: false, reason: "no_connection" };
     }
 
     if (!response.success) {
       if (response.reason === "no_transcript") {
-        replaceLog(searchingEntry, "↷ No transcript — skipping.", "skip");
+        replaceLog(searchingEntry, "↷ No transcript found — skipping.", "skip");
         return { success: false, reason: "no_transcript", isEndOfCourse: response.isEndOfCourse };
       }
+      replaceLog(searchingEntry, `↷ Skipped: ${response.reason || "Unknown issue"}`, "skip");
+      return { success: false, reason: response.reason || "skip", isEndOfCourse: response.isEndOfCourse };
     }
 
     const format = getSelectedFormat();
@@ -273,8 +324,8 @@ async function extractCurrentVideo(index, silentMode = false) {
     return { success: true, isEndOfCourse: response.isEndOfCourse };
 
   } catch (err) {
-    replaceLog(searchingEntry, `✗ Error: ${err.message}. Please refresh the current page and try again.`, "error");
-    return { success: false, reason: "error" };
+    replaceLog(searchingEntry, `✗ Error: ${err.message}`, "error");
+    return { success: false, reason: "fatal_error" };
   }
 }
 
@@ -303,7 +354,10 @@ async function runAutoMode() {
   while (!shouldStop) {
     const result = await extractCurrentVideo(pageIndex, true);
 
-    if (result.reason === "no_connection") break;
+    // If fatal connection error or stopped, break out immediately
+    if (!result.success && result.reason !== "no_transcript") {
+      break;
+    }
 
     if (result.isEndOfCourse) {
       log("🏁 Reached end of course.", "success");
