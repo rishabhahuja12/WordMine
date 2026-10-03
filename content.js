@@ -9,14 +9,16 @@ window.__wordmine_initialized = true;
 // ─── 1. Content Taxonomy & Classification ───────────────────────────────────
 
 function getPageType() {
-  const url = window.location.href;
-  if (url.includes("/lecture/")) return "video";
-  if (url.includes("/supplement/")) return "reading";
-  if (url.includes("/quiz/") || url.includes("/practice-quiz/")) return "quiz";
-  if (url.includes("/exam/")) return "exam";
-  if (url.includes("/assignment-submission/") || url.includes("/peer/")) return "assignment";
-  if (url.includes("/discussionPrompt/") || url.includes("/discussion/")) return "discussion";
-  if (url.includes("/ungradedWidget/") || url.includes("/ungradedLti/") || url.includes("/lab/")) return "lab";
+  const ctx = getCourseContext();
+  if (!ctx || !ctx.itemType) return "other";
+  const t = ctx.itemType;
+  if (t === "lecture" || t === "video") return "video";
+  if (t === "supplement") return "reading";
+  if (t === "quiz" || t === "practice-quiz") return "quiz";
+  if (t === "exam") return "exam";
+  if (t === "peer" || t === "assignment" || t === "programming") return "assignment";
+  if (t === "discussionPrompt" || t === "dialogue" || t === "discussion") return "discussion";
+  if (t === "ungradedWidget" || t === "ungradedLti" || t === "lab") return "lab";
   return "other";
 }
 
@@ -541,15 +543,9 @@ function triggerDomReadingCompleted() {
   } catch (_) {}
 }
 
-function completeVideo() {
-  triggerDomVideoEnded();
-  return true;
-}
 
-function completeReading() {
-  triggerDomReadingCompleted();
-  return true;
-}
+
+
 
 async function markLectureCompleted(userId, courseId, courseSlug, itemId, isBulk = false) {
   const completeUrl = `${BASE_URL}/api/opencourse.v1/user/${userId}/course/${courseSlug}/item/${itemId}/lecture/videoEvents/ended?autoEnroll=false`;

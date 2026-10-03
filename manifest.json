@@ -3,20 +3,16 @@
   "name": "WordMine - Coursera Power Suite",
   "version": "2.0.0",
   "description": "100% Free All-In-One Coursera Power Suite: Transcript Miner (DOCX/PDF/TXT), Course Automator, and Gemini AI Co-Pilot.",
-
   "permissions": [
     "storage",
     "activeTab",
-    "scripting",
-    "tabs"
+    "scripting"
   ],
-
   "host_permissions": [
     "https://*.coursera.org/*",
     "https://coursera.org/*",
     "https://generativelanguage.googleapis.com/*"
   ],
-
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
@@ -25,23 +21,22 @@
       "128": "icons/icon128.png"
     }
   },
-
   "content_scripts": [
     {
       "matches": [
         "https://*.coursera.org/*"
       ],
-      "js": ["content.js"],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_idle"
     }
   ],
-
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-
   "web_accessible_resources": [
     {
       "resources": [
@@ -50,7 +45,9 @@
         "html2pdf.min.js",
         "pdfobject.min.js"
       ],
-      "matches": ["https://*.coursera.org/*"]
+      "matches": [
+        "https://*.coursera.org/*"
+      ]
     }
   ]
 }
