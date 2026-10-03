@@ -275,21 +275,43 @@ function completeVideo() {
   let completed = false;
   if (video) {
     try {
-      video.currentTime = (video.duration && !isNaN(video.duration)) ? video.duration - 0.2 : 99999;
+      if (video.duration && !isNaN(video.duration)) {
+        video.currentTime = Math.max(0, video.duration - 0.2);
+      } else {
+        video.currentTime = 99999;
+      }
+      try { video.playbackRate = 16; } catch (_) {}
+      video.dispatchEvent(new Event("play", { bubbles: true }));
       video.dispatchEvent(new Event("timeupdate", { bubbles: true }));
       video.dispatchEvent(new Event("ended", { bubbles: true }));
+      video.dispatchEvent(new Event("pause", { bubbles: true }));
       completed = true;
     } catch (e) {
       console.warn("Video seek error:", e);
     }
   }
 
-  // Click any "Mark as completed" or completion buttons
+  // Click any unclicked "Mark as completed" or completion buttons
   const buttons = Array.from(document.querySelectorAll("button, a"));
   const markBtns = buttons.filter(b => {
+    if (b.disabled) return false;
+    const isAlreadyChecked = b.getAttribute("aria-pressed") === "true" || b.getAttribute("aria-checked") === "true";
+    if (isAlreadyChecked) return false;
+
     const txt = (b.innerText || "").toLowerCase().trim();
-    return txt.includes("mark as completed") || txt.includes("mark complete") || txt === "completed";
+    const aria = (b.getAttribute("aria-label") || "").toLowerCase().trim();
+    const testid = (b.getAttribute("data-testid") || "").toLowerCase().trim();
+
+    const isMarkBtn = txt.includes("mark as completed") || txt.includes("mark complete") || txt.includes("mark as complete")
+      || aria.includes("mark as completed") || aria.includes("mark complete")
+      || testid.includes("mark-complete");
+
+    // Explicitly reject buttons that are already in past-tense completed state
+    if (txt === "completed" && !isMarkBtn) return false;
+
+    return isMarkBtn;
   });
+
   markBtns.forEach(b => {
     b.click();
     completed = true;
@@ -299,12 +321,22 @@ function completeVideo() {
 }
 
 function completeReading() {
-  window.scrollTo(0, document.body.scrollHeight);
+  window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
   const buttons = Array.from(document.querySelectorAll("button, a"));
   const markBtn = buttons.find(b => {
+    if (b.disabled) return false;
+    const isAlreadyChecked = b.getAttribute("aria-pressed") === "true" || b.getAttribute("aria-checked") === "true";
+    if (isAlreadyChecked) return false;
+
     const txt = (b.innerText || "").toLowerCase().trim();
-    return txt.includes("mark as completed") || txt.includes("mark complete");
+    const aria = (b.getAttribute("aria-label") || "").toLowerCase().trim();
+    const testid = (b.getAttribute("data-testid") || "").toLowerCase().trim();
+
+    return txt.includes("mark as completed") || txt.includes("mark complete") || txt.includes("mark as complete")
+      || aria.includes("mark as completed") || aria.includes("mark complete")
+      || testid.includes("mark-complete");
   });
+
   if (markBtn) {
     markBtn.click();
     return true;
@@ -313,15 +345,41 @@ function completeReading() {
 }
 
 function handleDiscussionPrompt() {
-  const textareas = document.querySelectorAll('textarea, [contenteditable="true"]');
-  if (!textareas || textareas.length === 0) {
-    return { success: false, error: "No discussion response box found on this page." };
+  let textareas = Array.from(document.querySelectorAll('textarea, [contenteditable="true"]'));
+  
+  // If no editor is currently visible, look for "Reply" or "Add a response" triggers
+  if (textareas.length === 0) {
+    const expandButtons = Array.from(document.querySelectorAll('button, a, [role="button"]'));
+    const replyTrigger = expandButtons.find(b => {
+      if (b.disabled) return false;
+      const txt = (b.innerText || "").toLowerCase().trim();
+      const aria = (b.getAttribute("aria-label") || "").toLowerCase().trim();
+      return (
+        txt.includes("reply") ||
+        txt.includes("add a response") ||
+        txt.includes("write a response") ||
+        txt.includes("create thread") ||
+        txt.includes("join discussion") ||
+        txt.includes("start discussion") ||
+        aria.includes("reply")
+      );
+    });
+
+    if (replyTrigger) {
+      replyTrigger.click();
+      textareas = Array.from(document.querySelectorAll('textarea, [contenteditable="true"]'));
+    }
+  }
+
+  if (textareas.length === 0) {
+    return { success: false, error: "No discussion response box found on this page. Please open a discussion forum prompt." };
   }
 
   const constructiveReflections = [
     "Thank you for this thought-provoking prompt. In my experience, adhering to these structured principles ensures rigorous quality, promotes scalable architectures, and mitigates edge-case risks in complex workflows.",
     "This concept highlights the critical importance of iterative verification and clear modular design. Approaching problems with this methodology significantly improves collaboration and clarity.",
-    "A very thoughtful topic. Balancing these considerations requires continuous alignment between foundational theory and practical execution, which this module demonstrates effectively."
+    "A very thoughtful topic. Balancing these considerations requires continuous alignment between foundational theory and practical execution, which this module demonstrates effectively.",
+    "Great discussion theme. Implementing these concepts systematically reinforces core architectural foundations while ensuring maintainability across production environments."
   ];
 
   const chosenText = constructiveReflections[Math.floor(Math.random() * constructiveReflections.length)];
@@ -342,37 +400,93 @@ function handleDiscussionPrompt() {
 
   return {
     success: true,
-    message: `Injected constructive reflection into ${injected} discussion input box(es). Ready to submit.`
+    message: `Injected constructive reflection into ${injected} discussion input box(es). Ready for review.`
   };
 }
 
 function assistPeerReview() {
   try {
-    // 1. Rubric radio buttons: select highest score for each rubric criterion
-    const radioGroups = new Map();
-    document.querySelectorAll('input[type="radio"]').forEach(r => {
-      const name = r.name || "default";
-      if (!radioGroups.has(name)) radioGroups.set(name, []);
-      radioGroups.get(name).push(r);
+    // 1. Identify all rubric criteria groups (native input[type="radio"] and [role="radio"])
+    const allRadios = Array.from(document.querySelectorAll('input[type="radio"], [role="radio"]'));
+
+    const groups = new Map();
+    let unassignedCounter = 0;
+
+    allRadios.forEach(radio => {
+      // Find nearest semantic container
+      const container = radio.closest('[role="radiogroup"], fieldset, [data-testid*="part"], tr, .rc-RubricPart, [role="group"], .rc-FormPartsQuestion');
+      let groupKey;
+      if (container) {
+        groupKey = container;
+      } else if (radio.name) {
+        groupKey = `name_${radio.name}`;
+      } else {
+        groupKey = `parent_${radio.parentElement ? radio.parentElement : unassignedCounter++}`;
+      }
+
+      if (!groups.has(groupKey)) groups.set(groupKey, []);
+      groups.get(groupKey).push(radio);
     });
 
     let radioCount = 0;
-    radioGroups.forEach(radios => {
-      // Find the radio with the maximum numeric score value, or the last one
-      let bestRadio = radios[radios.length - 1];
-      let maxVal = -Infinity;
-      radios.forEach(r => {
-        const val = parseFloat(r.value);
-        if (!isNaN(val) && val > maxVal) {
-          maxVal = val;
-          bestRadio = r;
+
+    function getRadioPoints(radio) {
+      // Direct numeric value attribute
+      const directVal = parseFloat(radio.value);
+      if (!isNaN(directVal)) return directVal;
+
+      // Label or aria-label text inspection
+      const ariaLabel = radio.getAttribute("aria-label") || "";
+      const labelText = radio.closest("label") ? radio.closest("label").innerText : "";
+      const parentText = radio.parentElement ? radio.parentElement.innerText : "";
+      const combinedText = `${ariaLabel} ${labelText} ${parentText}`.toLowerCase();
+
+      // Explicit point patterns: "3 points", "3 pts", "10 / 10", "3 pt"
+      const ptMatch = combinedText.match(/(\d+(?:\.\d+)?)\s*(?:points?|pts?|\/\s*\d+)/);
+      if (ptMatch) {
+        const parsed = parseFloat(ptMatch[1]);
+        if (!isNaN(parsed)) return parsed;
+      }
+
+      // Standalone numbers in score labels
+      const numMatch = combinedText.match(/\b(\d+(?:\.\d+)?)\b/);
+      if (numMatch) {
+        const parsed = parseFloat(numMatch[1]);
+        if (!isNaN(parsed)) return parsed;
+      }
+
+      // Qualitative rubric keyword scoring heuristics
+      if (combinedText.includes("excellent") || combinedText.includes("exceeds") || combinedText.includes("mastery")) return 100;
+      if (combinedText.includes("proficient") || combinedText.includes("good") || combinedText.includes("meets")) return 80;
+      if (combinedText.includes("partial") || combinedText.includes("developing") || combinedText.includes("needs improvement")) return 40;
+      if (combinedText.includes("unsatisfactory") || combinedText.includes("incomplete") || combinedText.includes("missing") || combinedText.includes("no")) return 0;
+
+      return -1;
+    }
+
+    groups.forEach(radios => {
+      if (radios.length === 0) return;
+
+      // Score each radio to select the HIGHEST rubric value
+      let bestRadio = radios[0]; // Default to first (standard descending order 3, 2, 1, 0)
+      let maxScore = -Infinity;
+
+      radios.forEach(radio => {
+        const score = getRadioPoints(radio);
+        if (score > maxScore) {
+          maxScore = score;
+          bestRadio = radio;
         }
       });
 
-      if (bestRadio && !bestRadio.checked) {
-        bestRadio.click();
-        bestRadio.dispatchEvent(new Event("change", { bubbles: true }));
-        radioCount++;
+      if (bestRadio) {
+        const isChecked = bestRadio.tagName === "INPUT" ? bestRadio.checked : bestRadio.getAttribute("aria-checked") === "true";
+        if (!isChecked) {
+          bestRadio.click();
+          bestRadio.dispatchEvent(new Event("change", { bubbles: true }));
+          bestRadio.dispatchEvent(new Event("input", { bubbles: true }));
+          radioCount++;
+        }
       }
     });
 
@@ -381,25 +495,37 @@ function assistPeerReview() {
       "Great work on this submission! The explanation is thorough, logically structured, and directly satisfies all rubric criteria with concrete detail.",
       "Clear, rigorous, and concise submission. Demonstrates strong conceptual understanding of the module and provides high-quality insights.",
       "Well done! All required components are addressed with exemplary accuracy. The methodology is clearly communicated throughout.",
-      "Excellent effort! The submission adheres strictly to the assignment guidelines and demonstrates deep mastery of the subject."
+      "Excellent effort! The submission adheres strictly to the assignment guidelines and demonstrates deep mastery of the subject.",
+      "Comprehensive analysis and thoughtful presentation. The solution is well-organized and reflects diligent attention to detail."
     ];
 
     let filledComments = 0;
-    document.querySelectorAll("textarea").forEach((ta, idx) => {
-      if (!ta.value || ta.value.trim().length === 0) {
-        ta.value = rubricComments[idx % rubricComments.length];
-        ta.dispatchEvent(new Event("input", { bubbles: true }));
-        ta.dispatchEvent(new Event("change", { bubbles: true }));
+    document.querySelectorAll("textarea, [contenteditable=\"true\"]").forEach((ta, idx) => {
+      const val = ta.tagName === "TEXTAREA" ? ta.value : ta.innerText;
+      if (!val || val.trim().length === 0) {
+        const comment = rubricComments[idx % rubricComments.length];
+        if (ta.tagName === "TEXTAREA") {
+          ta.value = comment;
+          ta.dispatchEvent(new Event("input", { bubbles: true }));
+          ta.dispatchEvent(new Event("change", { bubbles: true }));
+        } else {
+          ta.innerText = comment;
+          ta.dispatchEvent(new Event("input", { bubbles: true }));
+        }
         filledComments++;
       }
     });
 
-    // 3. Check confirmation / honor code checkboxes if present
+    // 3. Check confirmation / honor code checkboxes
     let checkedBoxes = 0;
-    document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-      const parentText = (cb.parentElement?.innerText || "").toLowerCase();
-      if (parentText.includes("honor code") || parentText.includes("confirm") || parentText.includes("reviewed")) {
-        if (!cb.checked) {
+    document.querySelectorAll('input[type="checkbox"], [role="checkbox"]').forEach(cb => {
+      const parentText = (cb.parentElement ? cb.parentElement.innerText : "").toLowerCase();
+      const ariaLabel = (cb.getAttribute("aria-label") || "").toLowerCase();
+      const combined = `${parentText} ${ariaLabel}`;
+
+      if (combined.includes("honor code") || combined.includes("confirm") || combined.includes("reviewed") || combined.includes("agree")) {
+        const isChecked = cb.tagName === "INPUT" ? cb.checked : cb.getAttribute("aria-checked") === "true";
+        if (!isChecked) {
           cb.click();
           cb.dispatchEvent(new Event("change", { bubbles: true }));
           checkedBoxes++;
@@ -409,14 +535,14 @@ function assistPeerReview() {
 
     return {
       success: true,
-      message: `Assisted review: selected ${radioCount} top rubric score(s), filled ${filledComments} comment box(es), and acknowledged ${checkedBoxes} requirement(s).`
+      message: `Assisted review: selected top rubric scores for ${groups.size} criteria group(s) (${radioCount} updated), filled ${filledComments} comment box(es), and acknowledged ${checkedBoxes} requirement(s).`
     };
   } catch (err) {
     return { success: false, error: err.message };
   }
 }
 
-// ─── 5. Quiz Questions Extractor for Gemini AI ──────────────────────────────
+// ─── 5. Quiz Questions Extractor for Gemini AI & Study Sheets ───────────────
 
 function extractQuizQuestions() {
   const questionContainers = document.querySelectorAll(
@@ -427,17 +553,32 @@ function extractQuizQuestions() {
   const seenPrompts = new Set();
 
   questionContainers.forEach((qEl, qIdx) => {
-    const promptEl = qEl.querySelector('.rc-FormPartsQuestion__prompt, [data-testid*="prompt"], .cml-viewer, h3, h4, p');
-    const prompt = promptEl ? cleanText(promptEl.innerText) : "";
+    const promptContainer = qEl.querySelector('.rc-FormPartsQuestion__prompt, [data-testid*="prompt"], .rc-CML');
+    let prompt = "";
+    if (promptContainer) {
+      prompt = cleanText(promptContainer.innerText);
+    } else {
+      const promptEl = qEl.querySelector('h3, h4, p');
+      prompt = promptEl ? cleanText(promptEl.innerText) : "";
+    }
 
     if (!prompt || prompt.length < 5 || seenPrompts.has(prompt)) return;
     seenPrompts.add(prompt);
 
     const optionEls = qEl.querySelectorAll('label, .rc-Option, [role="radio"], [role="checkbox"]');
-    const options = Array.from(optionEls).map((opt, oIdx) => ({
-      index: oIdx,
-      text: cleanText(opt.innerText)
-    })).filter(o => o.text.length > 0 && o.text !== prompt);
+    const options = [];
+    const seenOptionTexts = new Set();
+
+    optionEls.forEach((opt) => {
+      const optText = cleanText(opt.innerText);
+      if (optText.length > 0 && optText !== prompt && !seenOptionTexts.has(optText)) {
+        seenOptionTexts.add(optText);
+        options.push({
+          index: options.length,
+          text: optText
+        });
+      }
+    });
 
     const isMultiSelect = !!qEl.querySelector('input[type="checkbox"], [role="checkbox"]');
 
@@ -450,6 +591,22 @@ function extractQuizQuestions() {
   });
 
   return questions;
+}
+
+function formatQuizAsStudySheet(title, questions) {
+  if (!questions || questions.length === 0) return null;
+  let text = `Practice/Graded Quiz: ${title}\n${"=".repeat(Math.max(20, title.length + 22))}\n\n`;
+  questions.forEach(q => {
+    text += `Question ${q.index}: ${q.prompt}\n`;
+    if (q.options && q.options.length > 0) {
+      q.options.forEach((opt, idx) => {
+        const letter = String.fromCharCode(65 + (idx % 26));
+        text += `  [${letter}] ${opt.text}\n`;
+      });
+    }
+    text += "\n";
+  });
+  return text.trim();
 }
 
 // ─── 6. Message Listener ────────────────────────────────────────────────────
@@ -506,14 +663,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (isQuizOrActivityPage()) {
         const title = getVideoTitle() || getReadingTitle() || "Interactive Activity";
         let reason = "no_transcript";
+        let quizContent = null;
         if (pageType === "quiz" || pageType === "exam") {
           reason = "is_quiz";
+          try {
+            const questions = extractQuizQuestions();
+            quizContent = formatQuizAsStudySheet(title, questions);
+          } catch (e) {
+            console.warn("Could not extract quiz study sheet:", e);
+          }
         }
         sendResponse({
           success: false,
           reason,
           pageType,
           title,
+          quizContent,
           isEndOfCourse: isEndOfCourse()
         });
         return;

@@ -62,7 +62,11 @@ const btnAutoMarkCurrent = document.getElementById("btnAutoMarkCurrent");
 const btnHandleDiscussion = document.getElementById("btnHandleDiscussion");
 const btnAssistPeerReview = document.getElementById("btnAssistPeerReview");
 const btnAutoLoopCourse = document.getElementById("btnAutoLoopCourse");
+const btnStopAutomator = document.getElementById("btnStopAutomator");
 const automatorStatusNote = document.getElementById("automatorStatusNote");
+
+let isAutomatorRunning = false;
+let shouldStopAutomator = false;
 
 // Gemini AI View DOM
 const geminiApiKeyInput = document.getElementById("geminiApiKey");
@@ -70,7 +74,10 @@ const btnSaveKey = document.getElementById("btnSaveKey");
 const btnAiSolveQuiz = document.getElementById("btnAiSolveQuiz");
 const btnAiSummarize = document.getElementById("btnAiSummarize");
 const btnAiPeerReview = document.getElementById("btnAiPeerReview");
+const aiOutputContainer = document.getElementById("aiOutputContainer");
 const aiOutputBox = document.getElementById("aiOutputBox");
+const btnCopyAiOutput = document.getElementById("btnCopyAiOutput");
+const copyBtnLabel = document.getElementById("copyBtnLabel");
 
 // Status Bar
 const statusIndicator = document.getElementById("statusIndicator");
@@ -348,11 +355,21 @@ async function generatePdf(title, transcript) {
     font-family: Arial, sans-serif;
     font-size: 12px;
     line-height: 1.6;
-    padding: 20px;
+    padding: 24px;
     color: #1C1C1A;
+    background-color: #FFFFFF;
+    position: fixed;
+    left: -9999px;
+    top: 0;
+    width: 700px;
+    z-index: -1000;
   `;
   function escapeHtml(str) {
-    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    return String(str || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
   }
   element.innerHTML = `
     <h1 style="font-size:18px; font-weight:bold; color:#1F5C6B; margin-bottom:16px;">${escapeHtml(title)}</h1>
@@ -362,15 +379,21 @@ async function generatePdf(title, transcript) {
     ).join("")}</div>
   `;
 
+  document.body.appendChild(element);
+
   const opt = {
     margin: 15,
     filename: `${sanitizeFilename(title)}.pdf`,
     image: { type: "jpeg", quality: 0.98 },
-    html2canvas: { scale: 2 },
+    html2canvas: { scale: 2, useCORS: true },
     jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
   };
 
-  return await html2pdf().set(opt).from(element).outputPdf("blob");
+  try {
+    return await html2pdf().set(opt).from(element).outputPdf("blob");
+  } finally {
+    if (element.parentNode) element.parentNode.removeChild(element);
+  }
 }
 
 // ─── ZIP download ─────────────────────────────────────────────────────────────
@@ -380,7 +403,7 @@ async function downloadAsZip(files) {
   const zip = new JSZip();
   const folder = zip.folder("WordMine Transcripts");
 
-  await Promise.all(files.map(async (f) => {
+  for (const f of files) {
     const prefix = String(f.index).padStart(2, "0");
     const filename = `${prefix} - ${sanitizeFilename(f.title)}.${f.format}`;
     let blob;
@@ -394,7 +417,7 @@ async function downloadAsZip(files) {
     }
 
     folder.file(filename, blob);
-  }));
+  }
 
   const blob = await zip.generateAsync({ type: "blob" });
   const url = URL.createObjectURL(blob);
@@ -537,7 +560,25 @@ async function extractCurrentVideo(index, silentMode = false) {
       const title = response.title || "Untitled Activity";
 
       if (response.reason === "is_quiz") {
-        const reasonMsg = "Practice/Graded Quiz — No transcript (interactive test)";
+        if (includeQuizzes && includeQuizzes.checked && response.quizContent) {
+          const format = getSelectedFormat();
+          const fileIndex = collectedFiles.length + 1;
+          collectedFiles.push({
+            title: response.title,
+            content: response.quizContent,
+            format,
+            index: fileIndex
+          });
+          await saveCollectedFiles();
+          replaceLog(searchingEntry, `[${fileIndex}] (Quiz Study Sheet) ${sanitizeFilename(response.title)}`, "success");
+          if (!silentMode) {
+            await downloadSingleFile(response.title, response.quizContent, format, fileIndex);
+          }
+          return { success: true, isEndOfCourse: response.isEndOfCourse };
+        }
+        const reasonMsg = (includeQuizzes && !includeQuizzes.checked)
+          ? "Practice/Graded Quiz — Excluded by filter: Quizzes unchecked"
+          : "Practice/Graded Quiz — Interactive assessment";
         addSkippedItem(title, pageType, reasonMsg);
         replaceLog(searchingEntry, `Skipped Quiz: ${sanitizeFilename(title)}`, "skip");
         return { success: false, reason: "quiz_skipped", isEndOfCourse: response.isEndOfCourse };
@@ -558,14 +599,16 @@ async function extractCurrentVideo(index, silentMode = false) {
       return { success: false, reason: response.reason || "skip", isEndOfCourse: response.isEndOfCourse };
     }
 
-    // Check user content filters (Videos vs Readings)
-    const isVideo = response.pageType === "video" || !response.transcript.includes("\n\n");
+    // Check user content filters (authoritative pageType check)
+    const isVideo = response.pageType === "video";
+    const isReading = response.pageType === "reading";
+
     if (isVideo && includeVideos && !includeVideos.checked) {
       addSkippedItem(response.title, "video", "Excluded by filter: Videos unchecked");
       replaceLog(searchingEntry, `Skipped Video (Videos unchecked): ${sanitizeFilename(response.title)}`, "skip");
       return { success: false, reason: "filtered_video", isEndOfCourse: response.isEndOfCourse };
     }
-    if (!isVideo && includeReadings && !includeReadings.checked) {
+    if (isReading && includeReadings && !includeReadings.checked) {
       addSkippedItem(response.title, "reading", "Excluded by filter: Readings unchecked");
       replaceLog(searchingEntry, `Skipped Reading (Readings unchecked): ${sanitizeFilename(response.title)}`, "skip");
       return { success: false, reason: "filtered_reading", isEndOfCourse: response.isEndOfCourse };
@@ -740,8 +783,11 @@ function extractCurriculumDirectly() {
     let currentType = "other";
     if (currentHref.includes("/lecture/")) currentType = "video";
     else if (currentHref.includes("/supplement/")) currentType = "reading";
-    else if (currentHref.includes("/quiz/")) currentType = "quiz";
+    else if (currentHref.includes("/quiz/") || currentHref.includes("/practice-quiz/")) currentType = "quiz";
     else if (currentHref.includes("/exam/")) currentType = "exam";
+    else if (currentHref.includes("/assignment-submission/") || currentHref.includes("/peer/")) currentType = "assignment";
+    else if (currentHref.includes("/discussionPrompt/") || currentHref.includes("/discussion/")) currentType = "discussion";
+    else if (currentHref.includes("/ungradedWidget/") || currentHref.includes("/ungradedLti/") || currentHref.includes("/lab/")) currentType = "lab";
 
     if (currentTitle && currentType !== "other") {
       result.push({
@@ -988,19 +1034,153 @@ if (btnAssistPeerReview) {
   });
 }
 
+// ─── Course Automator Auto-Loop Engine (Real Non-Destructive Automation) ────
+
+async function runAutoLoopCourse() {
+  if (isAutomatorRunning) return;
+  isAutomatorRunning = true;
+  shouldStopAutomator = false;
+
+  if (btnAutoLoopCourse) btnAutoLoopCourse.disabled = true;
+  if (btnStopAutomator) btnStopAutomator.style.display = "flex";
+  if (automatorStatusNote) automatorStatusNote.textContent = "Starting auto-complete loop for course...";
+
+  let completedLessonsCount = 0;
+  let skippedItemsCount = 0;
+
+  try {
+    while (!shouldStopAutomator) {
+      // Step 1: Detect active page and lesson type
+      let pageCheck;
+      try {
+        pageCheck = await sendMessageToTab({ action: "checkPage" });
+      } catch (err) {
+        if (automatorStatusNote) automatorStatusNote.textContent = `Auto-loop notice: ${err.message}`;
+        break;
+      }
+
+      if (!pageCheck) {
+        if (automatorStatusNote) automatorStatusNote.textContent = "Could not connect to Coursera tab. Stopping loop.";
+        break;
+      }
+
+      if (pageCheck.isEndOfCourse) {
+        if (automatorStatusNote) automatorStatusNote.textContent = `Course complete! Finished ${completedLessonsCount} lesson(s).`;
+        break;
+      }
+
+      const pageType = pageCheck.pageType || "other";
+
+      // Step 2: Handle completion based on taxonomy archetype
+      if (pageType === "video") {
+        if (automatorStatusNote) automatorStatusNote.textContent = `[${completedLessonsCount + 1}] Completing video lecture...`;
+        try {
+          const res = await sendMessageToTab({ action: "completeLesson" });
+          if (res && res.success) completedLessonsCount++;
+        } catch (e) {
+          console.warn("Video completion error:", e);
+        }
+      } else if (pageType === "reading") {
+        if (automatorStatusNote) automatorStatusNote.textContent = `[${completedLessonsCount + 1}] Completing reading lesson...`;
+        try {
+          const res = await sendMessageToTab({ action: "completeLesson" });
+          if (res && res.success) completedLessonsCount++;
+        } catch (e) {
+          console.warn("Reading completion error:", e);
+        }
+      } else if (pageType === "discussion") {
+        if (automatorStatusNote) automatorStatusNote.textContent = `[${completedLessonsCount + 1}] Handling discussion prompt...`;
+        try {
+          await sendMessageToTab({ action: "handleDiscussionPrompt" });
+          completedLessonsCount++;
+        } catch (e) {
+          console.warn("Discussion handling error:", e);
+        }
+      } else if (pageType === "lab") {
+        if (automatorStatusNote) automatorStatusNote.textContent = "Guided Lab detected — logging and advancing...";
+        try {
+          await sendMessageToTab({ action: "completeLesson" });
+        } catch (_) {}
+        addSkippedItem("Hands-on Guided Lab", "lab", "Interactive sandbox — verified and advanced");
+        skippedItemsCount++;
+      } else if (pageType === "quiz" || pageType === "exam") {
+        if (automatorStatusNote) automatorStatusNote.textContent = "Quiz/Exam encountered — advancing (use Gemini AI to solve)...";
+        addSkippedItem("Course Assessment", pageType, "Practice/Graded Quiz — assessment requires student action");
+        skippedItemsCount++;
+      } else if (pageType === "assignment") {
+        if (automatorStatusNote) automatorStatusNote.textContent = "Peer/Staff Assignment encountered — advancing...";
+        addSkippedItem("Peer Assignment", "assignment", "Assignment rubric — submission or review required");
+        skippedItemsCount++;
+      }
+
+      if (shouldStopAutomator) break;
+
+      // Step 3: Advance to next item
+      if (automatorStatusNote) automatorStatusNote.textContent = `Advancing to next item (${completedLessonsCount} completed)...`;
+      const advanced = await goToNextVideo();
+      if (!advanced) {
+        if (automatorStatusNote) automatorStatusNote.textContent = `Completed ${completedLessonsCount} lesson(s). Reached end of section.`;
+        break;
+      }
+
+      // Step 4: Pause briefly for SPA hydration
+      await new Promise(r => setTimeout(r, 2000));
+    }
+  } catch (err) {
+    if (automatorStatusNote) automatorStatusNote.textContent = `Auto-loop stopped: ${err.message}`;
+  } finally {
+    isAutomatorRunning = false;
+    if (btnAutoLoopCourse) btnAutoLoopCourse.disabled = false;
+    if (btnStopAutomator) btnStopAutomator.style.display = "none";
+    if (shouldStopAutomator) {
+      if (automatorStatusNote) automatorStatusNote.textContent = `Auto-loop stopped by user. Total completed: ${completedLessonsCount}.`;
+    }
+  }
+}
+
 if (btnAutoLoopCourse) {
   btnAutoLoopCourse.addEventListener("click", async () => {
-    if (automatorStatusNote) automatorStatusNote.textContent = "Auto-completing course queue...";
-    switchView("viewMiner");
-    if (autoToggle) {
-      autoToggle.checked = true;
-      autoToggle.dispatchEvent(new Event("change"));
-    }
-    if (extractBtn) extractBtn.click();
+    await runAutoLoopCourse();
+  });
+}
+
+if (btnStopAutomator) {
+  btnStopAutomator.addEventListener("click", () => {
+    shouldStopAutomator = true;
+    if (automatorStatusNote) automatorStatusNote.textContent = "Stopping auto-loop after current lesson...";
   });
 }
 
 // ─── Gemini AI Co-Pilot Handlers ──────────────────────────────────────────────
+
+function showAiOutput(text, isError = false) {
+  if (aiOutputContainer) aiOutputContainer.style.display = "flex";
+  if (aiOutputBox) {
+    aiOutputBox.style.display = "block";
+    aiOutputBox.textContent = text;
+    if (isError) {
+      aiOutputBox.style.color = "var(--status-red)";
+      aiOutputBox.style.borderColor = "#FCA5A5";
+    } else {
+      aiOutputBox.style.color = "var(--text-main)";
+      aiOutputBox.style.borderColor = "var(--border-card)";
+    }
+    aiOutputBox.scrollTop = 0;
+  }
+}
+
+if (btnCopyAiOutput) {
+  btnCopyAiOutput.addEventListener("click", async () => {
+    if (!aiOutputBox || !aiOutputBox.textContent) return;
+    try {
+      await navigator.clipboard.writeText(aiOutputBox.textContent);
+      if (copyBtnLabel) copyBtnLabel.textContent = "Copied!";
+      setTimeout(() => { if (copyBtnLabel) copyBtnLabel.textContent = "Copy"; }, 2000);
+    } catch (e) {
+      console.warn("Clipboard copy failed:", e);
+    }
+  });
+}
 
 if (btnSaveKey) {
   btnSaveKey.addEventListener("click", async () => {
@@ -1017,11 +1197,16 @@ if (btnSaveKey) {
 }
 
 async function callGemini(promptText) {
+  if (!userGeminiApiKey && geminiApiKeyInput && geminiApiKeyInput.value.trim()) {
+    userGeminiApiKey = geminiApiKeyInput.value.trim();
+    await setStorage({ geminiApiKey: userGeminiApiKey });
+  }
+
   if (!userGeminiApiKey) {
     throw new Error("Please enter your free Google Gemini API key above.");
   }
   
-  // Try gemini-1.5-flash with automatic fallback to gemini-2.0-flash
+  // Try gemini-1.5-flash with automatic fallback to gemini-2.0-flash and gemini-1.5-pro
   const models = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"];
   let lastError = null;
 
@@ -1054,18 +1239,16 @@ async function callGemini(promptText) {
 
 if (btnAiSolveQuiz) {
   btnAiSolveQuiz.addEventListener("click", async () => {
-    if (!aiOutputBox) return;
-    aiOutputBox.style.display = "block";
-    aiOutputBox.textContent = "Scanning quiz questions on page...";
+    showAiOutput("Scanning quiz questions on page...");
 
     try {
       const res = await sendMessageToTab({ action: "getQuizQuestions" });
       if (!res || !res.success || !res.questions || res.questions.length === 0) {
-        aiOutputBox.textContent = "No quiz questions found on this page. Make sure you are on a Coursera quiz/practice test page.";
+        showAiOutput("No quiz questions found on this page. Make sure you are on a Coursera quiz/practice test page.", true);
         return;
       }
 
-      aiOutputBox.textContent = `Found ${res.questions.length} question(s). Asking Gemini AI for answers & explanations...`;
+      showAiOutput(`Found ${res.questions.length} question(s). Asking Gemini AI for answers & explanations...`);
 
       let prompt = "You are an expert academic tutor. Solve each of the following Coursera quiz questions. For each question:\n1. State the question number.\n2. State the exact correct option or choice.\n3. Provide a clear, step-by-step 1-2 sentence explanation of why it is correct.\n\n";
       res.questions.forEach((q, idx) => {
@@ -1077,28 +1260,26 @@ if (btnAiSolveQuiz) {
       });
 
       const aiAnswer = await callGemini(prompt);
-      aiOutputBox.textContent = aiAnswer;
+      showAiOutput(aiAnswer);
 
     } catch (err) {
-      aiOutputBox.textContent = `Error: ${err.message}`;
+      showAiOutput(`Error: ${err.message}`, true);
     }
   });
 }
 
 if (btnAiSummarize) {
   btnAiSummarize.addEventListener("click", async () => {
-    if (!aiOutputBox) return;
-    aiOutputBox.style.display = "block";
-    aiOutputBox.textContent = "Extracting current lesson transcript...";
+    showAiOutput("Extracting current lesson transcript...");
 
     try {
       const res = await sendMessageToTab({ action: "getTranscript" });
       if (!res || !res.success || !res.transcript) {
-        aiOutputBox.textContent = "No transcript found on this page. Please open a video lecture or reading lesson first.";
+        showAiOutput("No transcript found on this page. Please open a video lecture or reading lesson first.", true);
         return;
       }
 
-      aiOutputBox.textContent = `Transcript loaded (${res.transcript.length} chars). Generating executive study sheet...`;
+      showAiOutput(`Transcript loaded (${res.transcript.length} chars). Generating executive study sheet...`);
 
       const prompt = `You are a high-level academic assistant. Create a high-yield executive study sheet for the following Coursera lesson:
 Title: ${res.title}
@@ -1112,28 +1293,26 @@ Please format the response as:
 3. Key Definitions & Formulas (if any)`;
 
       const summary = await callGemini(prompt);
-      aiOutputBox.textContent = summary;
+      showAiOutput(summary);
 
     } catch (err) {
-      aiOutputBox.textContent = `Error: ${err.message}`;
+      showAiOutput(`Error: ${err.message}`, true);
     }
   });
 }
 
 if (btnAiPeerReview) {
   btnAiPeerReview.addEventListener("click", async () => {
-    if (!aiOutputBox) return;
-    aiOutputBox.style.display = "block";
-    aiOutputBox.textContent = "Reading student submission from page...";
+    showAiOutput("Reading student submission from page...");
 
     try {
       const res = await sendMessageToTab({ action: "getPeerReviewContent" });
       if (!res || !res.success) {
-        aiOutputBox.textContent = "Please open a peer review evaluation page to generate constructive feedback.";
+        showAiOutput("Please open a peer review evaluation page to generate constructive feedback.", true);
         return;
       }
 
-      aiOutputBox.textContent = "Generating rubric-aligned peer review feedback with Gemini AI...";
+      showAiOutput("Generating rubric-aligned peer review feedback with Gemini AI...");
 
       const prompt = `You are a fair, encouraging academic peer reviewer. Evaluate this student submission and provide 3 distinct paragraphs of constructive, positive feedback adhering to highest rubric standards:
 
@@ -1147,10 +1326,10 @@ Provide:
 3. Constructive recommendation for future learning`;
 
       const feedback = await callGemini(prompt);
-      aiOutputBox.textContent = feedback;
+      showAiOutput(feedback);
 
     } catch (err) {
-      aiOutputBox.textContent = `Error: ${err.message}`;
+      showAiOutput(`Error: ${err.message}`, true);
     }
   });
 }

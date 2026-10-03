@@ -78,3 +78,15 @@ To eliminate user confusion when navigating mixed courses, WordMine implements a
   - [x] `RULES.md` (Engineering Guidelines & Anti-Slop Directives).
   - [x] Comprehensive test suite (`tests/` directory) with automated execution.
   - [x] Clean git commit and push to remote repository.
+
+- [x] **Phase 6: Hardening, Rubric Optimization & Automator Loop Decoupling**
+  - [x] Independent Course Automator loop (`runAutoLoopCourse`) with graceful `btnStopAutomator` control.
+  - [x] Semantic parent container grouping for radio buttons lacking `name` attributes (Coursera CDS components).
+  - [x] Highest-point rubric parser with numeric, qualitative, and label-based scoring heuristics.
+  - [x] Authoritative content-type filter evaluation preventing short readings from misclassifying as videos.
+  - [x] Study sheet generation for quizzes when `includeQuizzes` is enabled.
+  - [x] ECMA-376 OpenXML control character sanitization stripping invalid XML 1.0 bytes (`\u0000`–`\u001F`).
+  - [x] Off-screen DOM layout attachment and sequential queue processing for `html2pdf` PDF generation.
+  - [x] Complete CSS styling in `styles.css` for all action cards, API key inputs, and AI output displays.
+  - [x] Fast one-click clipboard copy for Gemini AI solutions and summaries.
+  - [x] 13/13 automated test suite passes with zero emojis and 100% clean compilation.

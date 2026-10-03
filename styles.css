@@ -1123,3 +1123,211 @@ body {
   color: var(--text-muted);
   line-height: 1.3;
 }
+
+/* ─── Automator & Gemini AI Feature Card Components ────────────────────────── */
+
+.feature-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.feature-icon-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background-color: var(--teal-tint);
+  color: var(--teal-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid var(--teal-border);
+}
+
+.feature-icon-badge.ai-badge {
+  background-color: #EDE9FE;
+  color: #6D28D9;
+  border-color: #DDD6FE;
+}
+
+.card-heading {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.25;
+}
+
+.card-subheading {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.automator-actions-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.action-card-btn {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  background-color: #FAFAF8;
+  border: 1px solid var(--border-card);
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+  width: 100%;
+}
+
+.action-card-btn:hover {
+  background-color: var(--card-bg);
+  border-color: var(--teal-primary);
+  box-shadow: 0 2px 6px rgba(31, 92, 107, 0.08);
+  transform: translateY(-1px);
+}
+
+.action-card-btn:active {
+  transform: translateY(0);
+}
+
+.action-card-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background-color: var(--teal-tint);
+  color: var(--teal-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.action-card-icon.ai-icon {
+  background-color: #EDE9FE;
+  color: #6D28D9;
+}
+
+.action-card-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.action-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.action-card-desc {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.automator-status-note {
+  font-size: 12px;
+  color: var(--teal-primary);
+  background-color: var(--teal-tint);
+  border: 1px solid var(--teal-border);
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin-top: 12px;
+  line-height: 1.4;
+  font-weight: 500;
+  word-break: break-word;
+}
+
+/* API Key Box */
+.api-key-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.input-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.text-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border-card);
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-family: var(--font-mono);
+  background-color: #FAFAF8;
+  color: var(--text-main);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.text-input:focus {
+  border-color: var(--teal-primary);
+  background-color: var(--card-bg);
+}
+
+.api-hint {
+  font-size: 11.5px;
+  color: var(--text-subtle);
+  line-height: 1.35;
+}
+
+.api-hint a {
+  color: var(--teal-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* AI Output Container & Box */
+.ai-output-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+  animation: fadeIn 0.2s ease;
+}
+
+.ai-output-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ai-output-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--teal-primary);
+  letter-spacing: -0.2px;
+}
+
+.ai-output-box {
+  background-color: #FAF9F6;
+  border: 1px solid var(--border-card);
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-main);
+  max-height: 240px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

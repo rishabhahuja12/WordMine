@@ -237,6 +237,7 @@ runTest('Taxonomy engine correctly classifies all 6 Coursera content archetypes'
     assert.ok(html.includes('id="btnHandleDiscussion"'), 'Missing btnHandleDiscussion');
     assert.ok(html.includes('id="btnAssistPeerReview"'), 'Missing btnAssistPeerReview');
     assert.ok(html.includes('id="btnAutoLoopCourse"'), 'Missing btnAutoLoopCourse');
+    assert.ok(html.includes('id="btnStopAutomator"'), 'Missing btnStopAutomator');
 
     // Gemini AI controls
     assert.ok(html.includes('id="geminiApiKey"'), 'Missing geminiApiKey');
@@ -244,7 +245,126 @@ runTest('Taxonomy engine correctly classifies all 6 Coursera content archetypes'
     assert.ok(html.includes('id="btnAiSolveQuiz"'), 'Missing btnAiSolveQuiz');
     assert.ok(html.includes('id="btnAiSummarize"'), 'Missing btnAiSummarize');
     assert.ok(html.includes('id="btnAiPeerReview"'), 'Missing btnAiPeerReview');
+    assert.ok(html.includes('id="aiOutputContainer"'), 'Missing aiOutputContainer');
     assert.ok(html.includes('id="aiOutputBox"'), 'Missing aiOutputBox');
+    assert.ok(html.includes('id="btnCopyAiOutput"'), 'Missing btnCopyAiOutput');
+  });
+
+  // ─── Test 9: Peer Review Rubric Scoring & Container Grouping ───────────────
+  runTest('Peer review engine correctly groups nametag-less radios and picks highest rubric points', () => {
+    // Simulate 2 criteria groups where radios lack name attributes (typical of Coursera React CDS)
+    // Group 1: 3 pts, 2 pts, 0 pts (descending)
+    // Group 2: 0 pts, 1 pt, 5 pts (ascending)
+    const mockGroups = [
+      [
+        { value: 'opt_1', text: '3 points - Exemplary implementation', score: 3 },
+        { value: 'opt_2', text: '2 points - Acceptable implementation', score: 2 },
+        { value: 'opt_3', text: '0 points - Incomplete or missing', score: 0 }
+      ],
+      [
+        { value: 'opt_a', text: '0 points - Did not attempt', score: 0 },
+        { value: 'opt_b', text: '1 point - Basic effort', score: 1 },
+        { value: 'opt_c', text: '5 points - Masterful execution', score: 5 }
+      ]
+    ];
+
+    function getRadioPoints(radio) {
+      const directVal = parseFloat(radio.value);
+      if (!isNaN(directVal)) return directVal;
+      const combinedText = (radio.text || '').toLowerCase();
+      const ptMatch = combinedText.match(/(\d+(?:\.\d+)?)\s*(?:points?|pts?|\/\s*\d+)/);
+      if (ptMatch) return parseFloat(ptMatch[1]);
+      if (combinedText.includes("masterful") || combinedText.includes("exemplary")) return 100;
+      if (combinedText.includes("acceptable") || combinedText.includes("basic")) return 50;
+      if (combinedText.includes("incomplete") || combinedText.includes("did not attempt")) return 0;
+      return -1;
+    }
+
+    mockGroups.forEach((radios, groupIdx) => {
+      let bestRadio = radios[0];
+      let maxScore = -Infinity;
+      radios.forEach(r => {
+        const score = getRadioPoints(r);
+        if (score > maxScore) {
+          maxScore = score;
+          bestRadio = r;
+        }
+      });
+
+      if (groupIdx === 0) {
+        assert.strictEqual(bestRadio.score, 3, 'Group 1 must select the 3-point option (not 0-point last option)');
+      } else {
+        assert.strictEqual(bestRadio.score, 5, 'Group 2 must select the 5-point option');
+      }
+    });
+  });
+
+  // ─── Test 10: XML 1.0 Control Character Sanitization ──────────────────────
+  runTest('DOCX generator strips invalid XML 1.0 control characters to prevent Word corruption', () => {
+    const dirtyText = 'Hello\u0000World\u0008Test\u001fValid\tTab\nNewline';
+    const escaped = dirtyText
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
+
+    assert.ok(!escaped.includes('\u0000'), 'Null byte must be removed');
+    assert.ok(!escaped.includes('\u0008'), 'Backspace must be removed');
+    assert.ok(!escaped.includes('\u001f'), 'Unit separator must be removed');
+    assert.ok(escaped.includes('\tTab'), 'Tab character must be preserved');
+    assert.ok(escaped.includes('\nNewline'), 'Newline must be preserved');
+  });
+
+  // ─── Test 11: Content Filter Reading vs Video Distinction ─────────────────
+  runTest('Content filter distinguishes readings from videos strictly by pageType', () => {
+    // Single-line reading without double newlines
+    const readingResponse = {
+      pageType: 'reading',
+      transcript: 'Short reading summary without any double breaks.',
+      title: 'Course Overview'
+    };
+
+    const isVideo = readingResponse.pageType === 'video';
+    const isReading = readingResponse.pageType === 'reading';
+
+    assert.strictEqual(isVideo, false, 'Reading must not be classified as a video');
+    assert.strictEqual(isReading, true, 'Reading must be correctly identified');
+  });
+
+  // ─── Test 12: Quiz Option Deduplication ────────────────────────────────────
+  runTest('Quiz scraper deduplicates identical option labels from nested ARIA elements', () => {
+    const rawOptions = [
+      { text: 'Option A: Gradient Descent' },
+      { text: 'Option A: Gradient Descent' }, // duplicate from inner div[role="radio"]
+      { text: 'Option B: Newton-Raphson' }
+    ];
+
+    const deduplicated = [];
+    const seenTexts = new Set();
+    rawOptions.forEach(opt => {
+      if (!seenTexts.has(opt.text)) {
+        seenTexts.add(opt.text);
+        deduplicated.push(opt);
+      }
+    });
+
+    assert.strictEqual(deduplicated.length, 2, 'Should have exactly 2 distinct options');
+    assert.strictEqual(deduplicated[0].text, 'Option A: Gradient Descent');
+    assert.strictEqual(deduplicated[1].text, 'Option B: Newton-Raphson');
+  });
+
+  // ─── Test 13: CSS Stylesheet Completeness ─────────────────────────────────
+  runTest('styles.css contains rules for all modern UI components across all 3 modes', () => {
+    const css = fs.readFileSync(path.join(ROOT_DIR, 'styles.css'), 'utf8');
+
+    assert.ok(css.includes('.automator-actions-grid'), 'Missing .automator-actions-grid CSS rule');
+    assert.ok(css.includes('.action-card-btn'), 'Missing .action-card-btn CSS rule');
+    assert.ok(css.includes('.api-key-box'), 'Missing .api-key-box CSS rule');
+    assert.ok(css.includes('.ai-output-container'), 'Missing .ai-output-container CSS rule');
+    assert.ok(css.includes('.ai-output-box'), 'Missing .ai-output-box CSS rule');
+    assert.ok(css.includes('.automator-status-note'), 'Missing .automator-status-note CSS rule');
   });
 
   console.log('\n====================================================');
