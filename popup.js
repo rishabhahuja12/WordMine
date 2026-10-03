@@ -333,12 +333,12 @@ async function runAutoMode() {
 
 autoToggle.addEventListener("change", () => {
   if (autoToggle.checked) {
-    modeHint.textContent = "Transcripts mined silently — one ZIP downloaded at the end.";
+    modeHint.textContent = "Auto: mines all lessons silently into one ZIP archive.";
     nextBtn.style.display = "none";
-    extractBtn.innerHTML = '<span class="btn-icon">⛏</span><span class="btn-label">Start Auto Mining</span>';
+    extractBtn.innerHTML = '<span class="btn-icon">⛏</span><span class="btn-label">START AUTO MINING</span>';
   } else {
-    modeHint.textContent = 'Click "Next Lesson" yourself after each extraction.';
-    extractBtn.innerHTML = '<span class="btn-icon">⛏</span><span class="btn-label">Mine This Lesson</span>';
+    modeHint.textContent = 'Manual: click Next Lesson yourself after each page.';
+    extractBtn.innerHTML = '<span class="btn-icon">⛏</span><span class="btn-label">MINE THIS LESSON</span>';
     nextBtn.style.display = isRunning ? "block" : "none";
   }
 });
@@ -365,7 +365,7 @@ nextBtn.addEventListener("click", async () => {
   const advanced = await goToNextVideo();
   if (!advanced) log("✗ Could not find Next button.", "error");
   nextBtn.disabled = false;
-  nextBtn.textContent = "Next Lesson →";
+  nextBtn.textContent = "NEXT LESSON →";
 });
 
 stopBtn.addEventListener("click", () => {

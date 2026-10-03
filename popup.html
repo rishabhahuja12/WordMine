@@ -8,110 +8,107 @@
 </head>
 <body>
 
-  <div class="app-container">
+  <div class="app-wrapper">
 
-    <!-- Neo-Brutalist Header -->
+    <!-- Neo-Brutalist High-Contrast Header -->
     <header class="header">
-      <div class="header-brand">
-        <div class="logo-box">
-          <img src="icons/icon48.png" alt="WordMine" class="logo" />
+      <div class="header-left">
+        <div class="logo-frame">
+          <img src="icons/icon48.png" alt="WordMine" class="logo-img" />
         </div>
-        <div class="header-info">
-          <div class="title-row">
-            <h1 class="brand-title">WORDMINE</h1>
-            <span class="badge-free">✦ UNLIMITED</span>
+        <div class="header-text">
+          <div class="brand-row">
+            <h1 class="brand-name">WORDMINE</h1>
+            <span class="pro-tag">FREE</span>
           </div>
-          <p class="tagline">Coursera Transcript Miner</p>
+          <p class="brand-sub">Coursera Transcript Miner</p>
         </div>
       </div>
     </header>
 
-    <!-- Main Content Area -->
-    <main class="main-content">
+    <main class="main-body">
 
-      <!-- Step 1: Output Format -->
-      <section class="brutalist-card card-format">
-        <div class="card-header">
-          <span class="step-num">01</span>
-          <span class="section-label">OUTPUT FORMAT</span>
+      <!-- Step 1: Format Selection -->
+      <section class="neo-card">
+        <div class="card-title-row">
+          <span class="step-badge">1</span>
+          <h2 class="card-heading">OUTPUT FORMAT</h2>
         </div>
-        <div class="format-group">
-          <label class="format-chip chip-docx">
+        <div class="format-grid">
+          <label class="format-btn">
             <input type="radio" name="format" value="docx" checked />
-            <span class="chip-content">
-              <span class="chip-icon">📄</span>
-              <span class="chip-name">DOCX</span>
+            <span class="format-box">
+              <span class="format-icon">📄</span>
+              <span class="format-text">DOCX</span>
             </span>
           </label>
-          <label class="format-chip chip-pdf">
+          <label class="format-btn">
             <input type="radio" name="format" value="pdf" />
-            <span class="chip-content">
-              <span class="chip-icon">📑</span>
-              <span class="chip-name">PDF</span>
+            <span class="format-box">
+              <span class="format-icon">📑</span>
+              <span class="format-text">PDF</span>
             </span>
           </label>
-          <label class="format-chip chip-txt">
+          <label class="format-btn">
             <input type="radio" name="format" value="txt" />
-            <span class="chip-content">
-              <span class="chip-icon">📝</span>
-              <span class="chip-name">TXT</span>
+            <span class="format-box">
+              <span class="format-icon">📝</span>
+              <span class="format-text">TXT</span>
             </span>
           </label>
         </div>
       </section>
 
-      <!-- Step 2: Advance Mode -->
-      <section class="brutalist-card card-mode">
-        <div class="card-header">
-          <span class="step-num">02</span>
-          <span class="section-label">ADVANCE MODE</span>
+      <!-- Step 2: Extraction Mode -->
+      <section class="neo-card">
+        <div class="card-title-row">
+          <span class="step-badge">2</span>
+          <h2 class="card-heading">ADVANCE MODE</h2>
         </div>
-        <div class="mode-control-row">
-          <span class="mode-label-text">Operation:</span>
-          <div class="mode-switch-wrapper">
-            <span class="mode-type-label manual-label">Manual</span>
-            <label class="brutalist-switch">
-              <input type="checkbox" id="autoToggle" />
-              <span class="switch-slider"></span>
-            </label>
-            <span class="mode-type-label auto-label">Auto</span>
+        <div class="mode-row">
+          <div class="mode-info">
+            <span class="mode-title">Auto-Advance</span>
+            <span class="mode-desc" id="modeHint">Manual: click Next Lesson yourself after each page.</span>
           </div>
-        </div>
-        <div class="mode-hint-box" id="modeHint">
-          Click "Next Lesson" yourself after each extraction.
+          <label class="neo-toggle">
+            <input type="checkbox" id="autoToggle" />
+            <span class="toggle-track">
+              <span class="toggle-knob"></span>
+            </span>
+          </label>
         </div>
       </section>
 
       <!-- Action Buttons -->
-      <div class="actions-group">
-        <button class="btn-brutalist btn-primary" id="extractBtn">
+      <div class="button-stack">
+        <button class="neo-btn btn-primary" id="extractBtn">
           <span class="btn-icon">⛏</span>
-          <span class="btn-label">Mine This Lesson</span>
+          <span class="btn-label">MINE THIS LESSON</span>
         </button>
-        <button class="btn-brutalist btn-secondary" id="nextBtn" style="display:none;">
-          Next Lesson →
+        <button class="neo-btn btn-secondary" id="nextBtn" style="display:none;">
+          NEXT LESSON →
         </button>
-        <button class="btn-brutalist btn-danger" id="stopBtn" style="display:none;">
-          ⏹ Stop Mining
+        <button class="neo-btn btn-stop" id="stopBtn" style="display:none;">
+          ⏹ STOP MINING
         </button>
       </div>
 
-      <!-- Mining Feed (Progress Log) -->
-      <section class="brutalist-card card-feed" id="logSection" style="display:none;">
-        <div class="feed-header">
-          <div class="feed-title">
-            <span class="feed-pulse-dot"></span>
-            <span>MINING FEED</span>
+      <!-- Mining Feed / Log Section -->
+      <section class="neo-card feed-card" id="logSection" style="display:none;">
+        <div class="feed-header-row">
+          <div class="feed-title-wrap">
+            <span class="live-dot"></span>
+            <span class="feed-title">MINING FEED</span>
           </div>
-          <span class="feed-chip">LIVE</span>
+          <span class="feed-badge">LIVE</span>
         </div>
-        <div class="log-box" id="logBox"></div>
-        <div class="feed-actions">
-          <button class="btn-brutalist btn-download" id="downloadBtn" style="display:none;">
+        <div class="log-container" id="logBox"></div>
+        <div class="feed-btn-row">
+          <button class="neo-btn btn-download" id="downloadBtn" style="display:none;">
             ⬇ DOWNLOAD ALL (.ZIP)
           </button>
-          <button class="btn-brutalist btn-clear" id="clearBtn" style="display:none;">
-            ✕ Clear Feed
+          <button class="neo-btn btn-clear" id="clearBtn" style="display:none;">
+            ✕ CLEAR LOG
           </button>
         </div>
       </section>
@@ -120,7 +117,7 @@
 
     <!-- Footer -->
     <footer class="footer">
-      <span>WordMine v2.0 • 100% Free &amp; Open-Source</span>
+      <span>WordMine v2.0 • 100% Free &amp; Open Source</span>
     </footer>
 
   </div>
