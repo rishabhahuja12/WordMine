@@ -1150,9 +1150,9 @@ async function callAIWithKey(provider, apiKey, prompt, customModel = null) {
       headers = { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };
     }
   } else if (provider === "gemini") {
-    models = ["gemini-1.5-flash", "gemini-3.8-flash"];
+    models = ["gemini-3.8-flash", "gemini-3.5-flash-lite"];
   } else if (provider === "groq") {
-    models = ["llama-3.3-70b-versatile", "llama3-8b-8192"];
+    models = ["openai/gpt-oss-120b", "openai/gpt-oss-20b"];
     baseUrl = "https://api.groq.com/openai/v1/chat/completions";
     headers = { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };
   } else if (provider === "grok") {
