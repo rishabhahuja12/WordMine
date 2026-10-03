@@ -291,7 +291,11 @@ async function saveCollectedFiles() {
 
 async function loadCollectedFiles() {
   try {
-    const data = await getStorage(["collectedFiles", "skippedItems", "geminiApiKey"]);
+    const data = await getStorage(["collectedFiles", "skippedItems", "geminiApiKey", "autoAdvance"]);
+    if (data.autoAdvance !== undefined && autoToggle) {
+      autoToggle.checked = data.autoAdvance;
+      autoToggle.dispatchEvent(new Event("change"));
+    }
     if (data.geminiApiKey) {
       userGeminiApiKey = data.geminiApiKey;
       if (geminiApiKeyInput) geminiApiKeyInput.value = userGeminiApiKey;
@@ -1458,6 +1462,7 @@ if (mineSelectedBtn) {
 
 if (autoToggle) {
   autoToggle.addEventListener("change", () => {
+    chrome.storage.local.set({ autoAdvance: autoToggle.checked });
     if (autoToggle.checked) {
       if (modeTitle) modeTitle.textContent = "Auto-advance: On";
       if (modeDesc) modeDesc.textContent = "Silently mines all lessons into one ZIP archive.";
