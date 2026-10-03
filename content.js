@@ -1935,10 +1935,130 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 } // end window.__wordmine_initialized
 
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => { 
-  if (request.action === 'solveAndClickQuiz' || request.action === 'writeAndFillAssignment' || request.action === 'getPeerReviewRubric') { 
-    sendResponse({ success: true }); 
+  if (request.action === 'solveAndClickQuiz' || request.action === 'writeAndFillAssignment' || request.action === 'getPeerReviewRubric' || request.action === 'clickQuizAnswers' || request.action === 'fillAssignmentText' || request.action === 'getAssignmentPrompt' || request.action === 'getAllDiscussionTopics') { 
+    
+    if (request.action === 'solveAndClickQuiz') {
+      try {
+        const questionContainers = document.querySelectorAll('[data-testid="question"], .rc-FormPartsQuestion, [class*="question"]');
+        const questions = Array.from(questionContainers).map((qEl) => {
+          const promptEl = qEl.querySelector('.rc-FormPartsQuestion__prompt, [data-testid*="prompt"], .rc-CML');
+          const prompt = promptEl ? promptEl.innerText : qEl.innerText.split('\n')[0];
+          const optionEls = qEl.querySelectorAll('label, .rc-Option, [role="radio"], [role="checkbox"]');
+          const options = Array.from(optionEls).map((opt, idx) => ({ text: opt.innerText.trim(), index: idx }));
+          return { prompt: prompt.trim(), options };
+        });
+        sendResponse({ success: true, questions });
+      } catch (err) {
+        sendResponse({ success: false, error: err.message });
+      }
+    }
+    
+    if (request.action === 'clickQuizAnswers') {
+      try {
+        const questionContainers = document.querySelectorAll('[data-testid="question"], .rc-FormPartsQuestion, [class*="question"]');
+        let clicked = 0;
+        request.answers.forEach(ans => {
+          const qEl = questionContainers[ans.questionIndex];
+          if (qEl) {
+            const optionEls = qEl.querySelectorAll('label, .rc-Option, [role="radio"], [role="checkbox"], input[type="radio"], input[type="checkbox"]');
+            const target = optionEls[ans.optionIndex];
+            if (target) {
+              target.click();
+              target.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+              clicked++;
+            }
+          }
+        });
+        sendResponse({ success: true, clicked });
+      } catch (err) {
+        sendResponse({ success: false, error: err.message });
+      }
+    }
+
+    if (request.action === 'getPeerReviewRubric') {
+      try {
+        const rubricEls = document.querySelectorAll('[data-testid*="rubric"], .rc-CriterionFeedback, .c-peer-review-rubric-item');
+        if (!rubricEls.length) {
+          sendResponse({ success: false, error: "No peer review rubric found on this page" });
+          return true;
+        }
+        
+        const rubric = Array.from(rubricEls).map(r => {
+          const critEl = r.querySelector('.rc-CriterionFeedback__title, [data-testid*="criterion-title"], h3, h4');
+          const criterion = critEl ? critEl.innerText : r.innerText.split('\n')[0];
+          const optionEls = r.querySelectorAll('label, .rc-Option, option');
+          const options = Array.from(optionEls).map(o => ({ text: o.innerText.trim(), value: o.value || o.innerText.trim() }));
+          return { criterion: criterion.trim(), options };
+        });
+        
+        const submissionEls = document.querySelectorAll('.submission-content, [data-testid*="submission"], .rc-CML');
+        let submissionText = "";
+        if (submissionEls.length) {
+          submissionText = Array.from(submissionEls).map(s => s.innerText).join('\n\n');
+        } else {
+          submissionText = document.body.innerText.substring(0, 5000);
+        }
+        
+        const titleEl = document.querySelector('h1') || document.title;
+        const title = titleEl.innerText || titleEl;
+        
+        sendResponse({ success: true, rubric, submissionText, title });
+      } catch (err) {
+        sendResponse({ success: false, error: err.message });
+      }
+    }
+
+    if (request.action === 'fillAssignmentText') {
+      try {
+        const textarea = document.querySelector('textarea, [contenteditable="true"]');
+        if (textarea) {
+          if (typeof fillTextInput !== "undefined") {
+            fillTextInput(textarea, request.text);
+          } else {
+            if (textarea.isContentEditable) {
+              textarea.innerText = request.text;
+            } else {
+              textarea.value = request.text;
+            }
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+            textarea.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+          sendResponse({ success: true });
+        } else {
+          sendResponse({ success: false, error: "No input area found" });
+        }
+      } catch (err) {
+        sendResponse({ success: false, error: err.message });
+      }
+    }
+
+    if (request.action === 'getAssignmentPrompt') {
+      try {
+        const promptEls = document.querySelectorAll('[data-testid*="instructions"], .rc-AssignmentInstructions');
+        let prompt = "";
+        if (promptEls.length) {
+          prompt = Array.from(promptEls).map(e => e.innerText).join('\n');
+        } else {
+          const h1 = document.querySelector('h1');
+          if (h1 && h1.nextElementSibling) {
+            prompt = h1.nextElementSibling.innerText;
+          } else {
+            prompt = document.body.innerText.substring(0, 1000);
+          }
+        }
+        sendResponse({ success: true, prompt: prompt.trim() });
+      } catch (err) {
+        sendResponse({ success: false, error: err.message });
+      }
+    }
+    
+    if (request.action === 'getAllDiscussionTopics') {
+      sendResponse({ success: true, topics: ["Discussion Prompt"] });
+    }
+
     return true; 
   } 
-  return true; 
 });
+

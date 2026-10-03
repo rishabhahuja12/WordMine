@@ -569,7 +569,16 @@ async function extractCurrentVideo(index, silentMode = false) {
         if (includeQuizzes && includeQuizzes.checked && response.quizContent) {
           const format = getSelectedFormat();
           const fileIndex = collectedFiles.length + 1;
-          collectedFiles.push({
+          const aiCleanToggle = document.getElementById("aiCleanToggle");
+    let finalContent = response.transcript;
+    if (aiCleanToggle && aiCleanToggle.checked && response.transcript) {
+      const cleanedTranscript = await callAI(
+        "Clean this transcript by removing filler words (um, uh, you know), fixing punctuation, and making it readable. Return only the cleaned text:\n\n" + response.transcript.substring(0, 12000)
+      );
+      finalContent = cleanedTranscript || response.transcript;
+      replaceLog(searchingEntry, `[AI-cleaned] ${sanitizeFilename(response.title)}`, "success");
+    }
+    collectedFiles.push({
             title: response.title,
             content: response.quizContent,
             format,
@@ -625,7 +634,7 @@ async function extractCurrentVideo(index, silentMode = false) {
 
     collectedFiles.push({
       title: response.title,
-      content: response.transcript,
+      content: finalContent,
       format,
       index: fileIndex
     });
@@ -1248,45 +1257,58 @@ if (btnSaveKey) {
   });
 }
 
-async function callGemini(promptText) {
-  if (!userGeminiApiKey && geminiApiKeyInput && geminiApiKeyInput.value.trim()) {
-    userGeminiApiKey = geminiApiKeyInput.value.trim();
-    await setStorage({ geminiApiKey: userGeminiApiKey });
+async function callAIWithKey(provider, apiKey, prompt) {
+  let url, headers, body;
+  if (provider === "gemini") {
+    url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    headers = { "Content-Type": "application/json" };
+    body = { contents: [{ parts: [{ text: prompt }] }] };
+  } else if (provider === "groq") {
+    url = "https://api.groq.com/openai/v1/chat/completions";
+    headers = { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };
+    body = { model: "llama-3.3-70b-versatile", messages: [{ role: "user", content: prompt }] };
+  } else if (provider === "grok") {
+    url = "https://api.x.ai/v1/chat/completions";
+    headers = { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };
+    body = { model: "grok-2-latest", messages: [{ role: "user", content: prompt }] };
+  } else if (provider === "openai") {
+    url = "https://api.openai.com/v1/chat/completions";
+    headers = { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };
+    body = { model: "gpt-4o-mini", messages: [{ role: "user", content: prompt }] };
+  } else if (provider === "mistral") {
+    url = "https://api.mistral.ai/v1/chat/completions";
+    headers = { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };
+    body = { model: "mistral-small-latest", messages: [{ role: "user", content: prompt }] };
   }
 
-  if (!userGeminiApiKey) {
-    throw new Error("Please enter your free Google Gemini API key above.");
+  const response = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+  if (response.status === 429) {
+    if (typeof updateStatus === "function") updateStatus("warning", `Rate limit hit on ${provider} — change provider in Settings`);
+    throw new Error(`Rate limit hit on ${provider} — change provider in Settings`);
   }
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    throw new Error(errData.error?.message || `API request failed (${response.status})`);
+  }
+  const data = await response.json();
   
-  // Try gemini-1.5-flash with automatic fallback to gemini-2.0-flash and gemini-1.5-pro
-  const models = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"];
-  let lastError = null;
-
-  for (const model of models) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${userGeminiApiKey}`;
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: promptText }] }]
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const candidate = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (candidate) return candidate;
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        lastError = new Error(errorData.error?.message || `Gemini API request failed (${response.status}) on model ${model}`);
-      }
-    } catch (e) {
-      lastError = e;
-    }
+  if (provider === "gemini") {
+    return data.candidates?.[0]?.content?.parts?.[0]?.text;
+  } else {
+    return data.choices?.[0]?.message?.content;
   }
+}
 
-  throw lastError || new Error("Failed to generate response from Gemini API.");
+async function callAI(prompt) {
+  const data = await getStorage(["aiProvider", "apiKey"]);
+  const provider = data.aiProvider || "gemini";
+  let apiKey = data.apiKey || userGeminiApiKey;
+  if (!apiKey && provider === "gemini" && typeof geminiApiKeyInput !== "undefined" && geminiApiKeyInput?.value?.trim()) {
+    apiKey = geminiApiKeyInput.value.trim();
+  }
+  if (!apiKey) throw new Error("Please enter your API key in Settings/Onboarding.");
+  
+  return await callAIWithKey(provider, apiKey, prompt);
 }
 
 if (btnAiSolveQuiz) {
@@ -1311,7 +1333,7 @@ if (btnAiSolveQuiz) {
         prompt += "\n";
       });
 
-      const aiAnswer = await callGemini(prompt);
+      const aiAnswer = await callAI(prompt);
       showAiOutput(aiAnswer);
 
     } catch (err) {
@@ -1344,7 +1366,7 @@ Please format the response as:
 2. Core Concepts & Takeaways (concise bullet points)
 3. Key Definitions & Formulas (if any)`;
 
-      const summary = await callGemini(prompt);
+      const summary = await callAI(prompt);
       showAiOutput(summary);
 
     } catch (err) {
@@ -1377,7 +1399,7 @@ Provide:
 2. Verification of rubric criteria alignment
 3. Constructive recommendation for future learning`;
 
-      const feedback = await callGemini(prompt);
+      const feedback = await callAI(prompt);
       showAiOutput(feedback);
 
     } catch (err) {
@@ -1549,3 +1571,114 @@ window.btnBulkCompleteDiscussions = document.getElementById('btnAutoCompleteLess
 window.markAllCompleted = function() { return true; };
 window.markAllDiscussionsCompleted = function() { return true; };
 
+
+
+const btnValidateStart = document.getElementById("btnValidateStart");
+const providerDropdown = document.getElementById("providerDropdown");
+const apiKeyInput = document.getElementById("apiKeyInput");
+
+if (btnValidateStart) {
+  btnValidateStart.addEventListener("click", async () => {
+    const provider = providerDropdown ? providerDropdown.value : "gemini";
+    const key = apiKeyInput ? apiKeyInput.value.trim() : "";
+    if (!key) { 
+      if (typeof showOnboardingError === "function") showOnboardingError("Please enter an API key."); 
+      else alert("Please enter an API key.");
+      return; 
+    }
+    
+    btnValidateStart.textContent = "Validating...";
+    btnValidateStart.disabled = true;
+    
+    try {
+      await callAIWithKey(provider, key, "Hello, respond with OK");
+      await chrome.storage.local.set({ aiProvider: provider, apiKey: key, onboardingDone: true });
+      if (typeof hideOnboarding === "function") hideOnboarding();
+    } catch (err) {
+      if (typeof showOnboardingError === "function") showOnboardingError(`Invalid key — ${err.message}`);
+      else alert(`Invalid key — ${err.message}`);
+    } finally {
+      btnValidateStart.textContent = "Validate & Start";
+      btnValidateStart.disabled = false;
+    }
+  });
+}
+
+
+const btnAutoCompleteEntire = document.getElementById("btnAutoCompleteEntire");
+const btnAutoCompleteLesson = document.getElementById("btnAutoCompleteLesson");
+const btnAutoPeerReview = document.getElementById("btnAutoPeerReview");
+const btnAiWriteAssignment = document.getElementById("btnAiWriteAssignment");
+
+if (btnAutoCompleteEntire) {
+  btnAutoCompleteEntire.addEventListener("click", async () => {
+    if (typeof automatorStatusNote !== 'undefined' && automatorStatusNote) automatorStatusNote.textContent = "Marking all completed...";
+    try {
+      await sendMessageToTab({ action: "markAllCompleted" });
+      const discussions = await sendMessageToTab({ action: "getAllDiscussionTopics" });
+      if (discussions && discussions.topics) {
+        for (const topic of discussions.topics) {
+          const generatedText = await callAI("Write a 2-3 sentence thoughtful academic response to this discussion prompt: " + topic);
+          await sendMessageToTab({ action: "handleDiscussionPrompt", aiResponse: generatedText });
+        }
+      } else {
+        await sendMessageToTab({ action: "markAllDiscussionsCompleted" });
+      }
+      if (typeof automatorStatusNote !== 'undefined' && automatorStatusNote) automatorStatusNote.textContent = "Completed course bulk operations.";
+    } catch (err) {
+      if (typeof automatorStatusNote !== 'undefined' && automatorStatusNote) automatorStatusNote.textContent = "Error: " + err.message;
+    }
+  });
+}
+
+if (btnAutoCompleteLesson) {
+  btnAutoCompleteLesson.addEventListener("click", async () => {
+    if (typeof automatorStatusNote !== 'undefined' && automatorStatusNote) automatorStatusNote.textContent = "Completing current lesson...";
+    try {
+      const res = await sendMessageToTab({ action: "completeLesson" });
+      if (typeof automatorStatusNote !== 'undefined' && automatorStatusNote) automatorStatusNote.textContent = res && res.success ? "Lesson completed!" : "Failed to complete lesson.";
+    } catch (err) {
+      if (typeof automatorStatusNote !== 'undefined' && automatorStatusNote) automatorStatusNote.textContent = "Error: " + err.message;
+    }
+  });
+}
+
+if (btnAutoPeerReview) {
+  btnAutoPeerReview.addEventListener("click", async () => {
+    if (typeof automatorStatusNote !== 'undefined' && automatorStatusNote) automatorStatusNote.textContent = "Starting auto peer review...";
+    try {
+      const res = await sendMessageToTab({ action: "getPeerReviewRubric" });
+      if (!res.success) {
+        if (typeof automatorStatusNote !== 'undefined' && automatorStatusNote) automatorStatusNote.textContent = res.error || "Failed to get rubric.";
+        return;
+      }
+      
+      const generatedFeedback = await callAI(`Provide peer review feedback for this submission based on the rubric criteria.
+Rubric: ${JSON.stringify(res.rubric)}
+Submission: ${res.submissionText}`);
+      
+      await sendMessageToTab({ action: "assistPeerReview", aiFeedback: generatedFeedback });
+      if (typeof automatorStatusNote !== 'undefined' && automatorStatusNote) automatorStatusNote.textContent = "Peer review completed!";
+    } catch (err) {
+      if (typeof automatorStatusNote !== 'undefined' && automatorStatusNote) automatorStatusNote.textContent = "Error: " + err.message;
+    }
+  });
+}
+
+if (btnAiWriteAssignment) {
+  btnAiWriteAssignment.addEventListener("click", async () => {
+    try {
+      const res = await sendMessageToTab({ action: "getAssignmentPrompt" });
+      if (!res.success) {
+        showAiOutput(res.error || "Failed to get assignment prompt", true);
+        return;
+      }
+      showAiOutput("Writing assignment...");
+      const generatedText = await callAI("Write a complete, well-structured assignment submission for: " + res.prompt);
+      await sendMessageToTab({ action: "fillAssignmentText", text: generatedText });
+      showAiOutput("Assignment written successfully:\n\n" + generatedText);
+    } catch (err) {
+      showAiOutput("Error: " + err.message, true);
+    }
+  });
+}
