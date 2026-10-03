@@ -1133,9 +1133,9 @@ async function callAIWithKey(provider, apiKey, prompt) {
   let headers = {};
   
   if (provider === "gemini") {
-    models = ["gemini-1.5-flash", "gemini-2.0-flash"];
+    models = ["gemini-1.5-flash", "gemini-3.8-flash"];
   } else if (provider === "groq") {
-    models = ["llama-3.3-70b-versatile", "mixtral-8x7b-32768"];
+    models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
     baseUrl = "https://api.groq.com/openai/v1/chat/completions";
     headers = { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };
   } else if (provider === "grok") {
