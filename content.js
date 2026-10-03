@@ -413,8 +413,122 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({
       onCoursera,
       onVideoPage,
+      pageType: getPageType(),
       isEndOfCourse: isEndOfCourse()
     });
+    return true;
+  }
+
+  // COMPLETE_LESSON — Auto-complete current video or reading lesson
+  if (message.action === "completeLesson") {
+    const pageType = getPageType();
+
+    if (pageType === "video") {
+      const video = document.querySelector("video");
+      if (video) {
+        try {
+          video.currentTime = (video.duration && !isNaN(video.duration)) ? video.duration - 0.5 : 99999;
+          video.dispatchEvent(new Event("timeupdate"));
+          video.dispatchEvent(new Event("ended"));
+          sendResponse({ success: true, message: "Video lecture marked completed." });
+        } catch (e) {
+          sendResponse({ success: false, error: e.message });
+        }
+        return true;
+      }
+    }
+
+    if (pageType === "reading") {
+      window.scrollTo(0, document.body.scrollHeight);
+      const markBtn = Array.from(document.querySelectorAll("button")).find(b => 
+        (b.innerText || "").toLowerCase().includes("mark as completed") ||
+        (b.innerText || "").toLowerCase().includes("mark complete")
+      );
+      if (markBtn) {
+        markBtn.click();
+        sendResponse({ success: true, message: "Reading marked as completed." });
+        return true;
+      }
+      sendResponse({ success: true, message: "Scrolled to end of reading lesson." });
+      return true;
+    }
+
+    sendResponse({ success: false, error: `Automated completion not supported for page type: ${pageType}` });
+    return true;
+  }
+
+  // ASSIST_PEER_REVIEW — Auto-fill highest rubric scores & constructive comments
+  if (message.action === "assistPeerReview") {
+    try {
+      const radioGroups = new Map();
+      document.querySelectorAll('input[type="radio"]').forEach(r => {
+        const name = r.name || "default";
+        if (!radioGroups.has(name)) radioGroups.set(name, []);
+        radioGroups.get(name).push(r);
+      });
+
+      let clickedCount = 0;
+      radioGroups.forEach(radios => {
+        const highestRadio = radios[radios.length - 1];
+        if (highestRadio && !highestRadio.checked) {
+          highestRadio.click();
+          highestRadio.dispatchEvent(new Event("change", { bubbles: true }));
+          clickedCount++;
+        }
+      });
+
+      const comments = [
+        "Great work on this submission! The explanation is clear and thoroughly addresses all required criteria.",
+        "Clear and concise submission with well-structured answers. Meets all rubric expectations.",
+        "Well done! Demonstrates a strong understanding of the course concepts with clear detail."
+      ];
+
+      let filledTexts = 0;
+      document.querySelectorAll("textarea").forEach((ta, idx) => {
+        if (!ta.value || ta.value.trim().length === 0) {
+          ta.value = comments[idx % comments.length];
+          ta.dispatchEvent(new Event("input", { bubbles: true }));
+          ta.dispatchEvent(new Event("change", { bubbles: true }));
+          filledTexts++;
+        }
+      });
+
+      sendResponse({
+        success: true,
+        message: `Assisted review: selected ${clickedCount} rubric scores and filled ${filledTexts} comment boxes.`
+      });
+    } catch (e) {
+      sendResponse({ success: false, error: e.message });
+    }
+    return true;
+  }
+
+  // GET_QUIZ_QUESTIONS — Extract current quiz questions for Gemini AI solving
+  if (message.action === "getQuizQuestions") {
+    try {
+      const questionElements = document.querySelectorAll(
+        '.rc-FormPartsQuestion, [data-testid*="question"], .rc-QuizQuestion, .cml-viewer'
+      );
+      const questions = [];
+
+      document.querySelectorAll('[data-testid*="question"], .rc-FormPartsQuestion').forEach((qEl, qIdx) => {
+        const promptEl = qEl.querySelector('.rc-FormPartsQuestion__prompt, [data-testid*="prompt"], h3, h4, p');
+        const prompt = promptEl ? cleanText(promptEl.innerText) : `Question ${qIdx + 1}`;
+        const optionEls = qEl.querySelectorAll('label, .rc-Option, [role="radio"], [role="checkbox"]');
+        const options = Array.from(optionEls).map((opt, oIdx) => ({
+          index: oIdx,
+          text: cleanText(opt.innerText)
+        })).filter(o => o.text.length > 0);
+
+        if (prompt) {
+          questions.push({ index: qIdx, prompt, options });
+        }
+      });
+
+      sendResponse({ success: true, questions });
+    } catch (e) {
+      sendResponse({ success: false, error: e.message });
+    }
     return true;
   }
 

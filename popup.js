@@ -1,33 +1,47 @@
-// popup.js — controls the WordMine popup UI, curriculum scanner, and orchestrates extraction
+// popup.js — WordMine Power Suite: Transcripts, Automator & Gemini AI
 
 // ─── State ───────────────────────────────────────────────────────────────────
 
 let isRunning = false;
 let shouldStop = false;
 let collectedFiles = [];
+let skippedItems = [];
 let scannedModules = [];
+let userGeminiApiKey = "";
 
 // ─── DOM References ──────────────────────────────────────────────────────────
 
+// Mode Navigation Tabs
+const tabMinerBtn = document.getElementById("tabMinerBtn");
+const tabAutomatorBtn = document.getElementById("tabAutomatorBtn");
+const tabAiBtn = document.getElementById("tabAiBtn");
+const viewMiner = document.getElementById("viewMiner");
+const viewAutomator = document.getElementById("viewAutomator");
+const viewAi = document.getElementById("viewAi");
+
+// Transcript Miner Controls
 const autoToggle = document.getElementById("autoToggle");
 const modeTitle = document.getElementById("modeTitle");
 const modeDesc = document.getElementById("modeDesc");
 const extractBtn = document.getElementById("extractBtn");
 const nextBtn = document.getElementById("nextBtn");
 const stopBtn = document.getElementById("stopBtn");
-const logSection = document.getElementById("logSection");
-const logBox = document.getElementById("logBox");
-const downloadBtn = document.getElementById("downloadBtn");
-const clearBtn = document.getElementById("clearBtn");
 
-// Filter checkboxes (Symmetrical: all express what to include)
+// Filter checkboxes
 const includeVideos = document.getElementById("includeVideos");
 const includeReadings = document.getElementById("includeReadings");
 const includeQuizzes = document.getElementById("includeQuizzes");
 
-// Status Bar
-const statusIndicator = document.getElementById("statusIndicator");
-const statusText = document.getElementById("statusText");
+// Feed & Skipped Audit Log
+const logSection = document.getElementById("logSection");
+const logBox = document.getElementById("logBox");
+const skippedBox = document.getElementById("skippedBox");
+const feedTabMined = document.getElementById("feedTabMined");
+const feedTabSkipped = document.getElementById("feedTabSkipped");
+const minedCountLabel = document.getElementById("minedCountLabel");
+const skippedCountLabel = document.getElementById("skippedCountLabel");
+const downloadBtn = document.getElementById("downloadBtn");
+const clearBtn = document.getElementById("clearBtn");
 
 // Curriculum Explorer DOM
 const scanCurriculumBtn = document.getElementById("scanCurriculumBtn");
@@ -43,21 +57,33 @@ const curriculumList = document.getElementById("curriculumList");
 const mineSelectedBtn = document.getElementById("mineSelectedBtn");
 const selectedCountBadge = document.getElementById("selectedCountBadge");
 
-// ─── SVG Icon Generators ─────────────────────────────────────────────────────
+// Automator View DOM
+const btnAutoMarkCurrent = document.getElementById("btnAutoMarkCurrent");
+const btnAssistPeerReview = document.getElementById("btnAssistPeerReview");
+const btnAutoLoopCourse = document.getElementById("btnAutoLoopCourse");
+const automatorStatusNote = document.getElementById("automatorStatusNote");
+
+// Gemini AI View DOM
+const geminiApiKeyInput = document.getElementById("geminiApiKey");
+const btnSaveKey = document.getElementById("btnSaveKey");
+const btnAiSolveQuiz = document.getElementById("btnAiSolveQuiz");
+const btnAiSummarize = document.getElementById("btnAiSummarize");
+const aiOutputBox = document.getElementById("aiOutputBox");
+
+// Status Bar
+const statusIndicator = document.getElementById("statusIndicator");
+const statusText = document.getElementById("statusText");
+
+// ─── SVG Icons ───────────────────────────────────────────────────────────────
 
 const ICONS = {
   search: '<circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path>',
   chevronUp: '<polyline points="18 15 12 9 6 15"></polyline>',
-  refresh: '<path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"></path>',
-  check: '<polyline points="20 6 9 17 4 12"></polyline>',
-  video: '<polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>',
-  reading: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>',
-  quiz: '<path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>'
+  refresh: '<path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"></path>'
 };
 
 function setScanButtonState(state) {
   if (!scanCurriculumBtn || !scanBtnLabel) return;
-
   if (state === "scanning") {
     scanCurriculumBtn.disabled = true;
     scanBtnLabel.textContent = "Scanning...";
@@ -77,6 +103,76 @@ function setScanButtonState(state) {
   }
 }
 
+// ─── Mode Navigation Tabs ───────────────────────────────────────────────────
+
+function switchView(targetViewId) {
+  [tabMinerBtn, tabAutomatorBtn, tabAiBtn].forEach(b => b.classList.remove("active"));
+  [viewMiner, viewAutomator, viewAi].forEach(v => v.classList.remove("active"));
+
+  if (targetViewId === "viewMiner") {
+    tabMinerBtn.classList.add("active");
+    viewMiner.classList.add("active");
+  } else if (targetViewId === "viewAutomator") {
+    tabAutomatorBtn.classList.add("active");
+    viewAutomator.classList.add("active");
+  } else if (targetViewId === "viewAi") {
+    tabAiBtn.classList.add("active");
+    viewAi.classList.add("active");
+  }
+}
+
+tabMinerBtn.addEventListener("click", () => switchView("viewMiner"));
+tabAutomatorBtn.addEventListener("click", () => switchView("viewAutomator"));
+tabAiBtn.addEventListener("click", () => switchView("viewAi"));
+
+// ─── Feed Tabs (Mined vs Skipped Audit) ──────────────────────────────────────
+
+feedTabMined.addEventListener("click", () => {
+  feedTabMined.classList.add("active");
+  feedTabSkipped.classList.remove("active");
+  logBox.style.display = "flex";
+  skippedBox.style.display = "none";
+});
+
+feedTabSkipped.addEventListener("click", () => {
+  feedTabSkipped.classList.add("active");
+  feedTabMined.classList.remove("active");
+  logBox.style.display = "none";
+  skippedBox.style.display = "flex";
+});
+
+function addSkippedItem(title, type, reason) {
+  skippedItems.push({
+    title: sanitizeFilename(title),
+    type: type || "other",
+    reason: reason || "Non-transcript item"
+  });
+  renderSkippedItems();
+}
+
+function renderSkippedItems() {
+  if (skippedCountLabel) skippedCountLabel.textContent = skippedItems.length;
+  if (skippedItems.length === 0) {
+    skippedBox.innerHTML = '<div class="empty-skipped-hint">No items skipped yet.</div>';
+    return;
+  }
+  skippedBox.innerHTML = "";
+  skippedItems.forEach(item => {
+    const row = document.createElement("div");
+    row.className = "skipped-row";
+    const typeLabel = item.type.toUpperCase();
+    const typeBadgeClass = `badge-${item.type}`;
+    row.innerHTML = `
+      <div class="skipped-title-line">
+        <span class="lesson-type-badge ${typeBadgeClass}">${typeLabel}</span>
+        <span class="lesson-title-text">${item.title}</span>
+      </div>
+      <div class="skipped-reason-line">${item.reason}</div>
+    `;
+    skippedBox.appendChild(row);
+  });
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function getSelectedFormat() {
@@ -93,6 +189,7 @@ function log(message, type = "normal") {
   if (type === "error")   entry.className = "log-entry-error";
   logBox.appendChild(entry);
   logBox.scrollTop = logBox.scrollHeight;
+  if (minedCountLabel) minedCountLabel.textContent = collectedFiles.length;
   return entry;
 }
 
@@ -103,6 +200,7 @@ function replaceLog(entry, message, type = "normal") {
   if (type === "skip")    entry.className = "log-entry-skip";
   if (type === "error")   entry.className = "log-entry-error";
   logBox.scrollTop = logBox.scrollHeight;
+  if (minedCountLabel) minedCountLabel.textContent = collectedFiles.length;
 }
 
 function sanitizeFilename(name) {
@@ -147,12 +245,25 @@ function setStorage(data) {
 // ─── Collected files persistence ─────────────────────────────────────────────
 
 async function saveCollectedFiles() {
-  await setStorage({ collectedFiles: JSON.stringify(collectedFiles) });
+  await setStorage({
+    collectedFiles: JSON.stringify(collectedFiles),
+    skippedItems: JSON.stringify(skippedItems)
+  });
 }
 
 async function loadCollectedFiles() {
   try {
-    const data = await getStorage(["collectedFiles"]);
+    const data = await getStorage(["collectedFiles", "skippedItems", "geminiApiKey"]);
+    if (data.geminiApiKey) {
+      userGeminiApiKey = data.geminiApiKey;
+      if (geminiApiKeyInput) geminiApiKeyInput.value = userGeminiApiKey;
+    }
+
+    if (data.skippedItems) {
+      skippedItems = JSON.parse(data.skippedItems);
+      renderSkippedItems();
+    }
+
     if (data.collectedFiles) {
       collectedFiles = JSON.parse(data.collectedFiles);
       if (collectedFiles.length > 0) {
@@ -167,6 +278,7 @@ async function loadCollectedFiles() {
     }
   } catch {
     collectedFiles = [];
+    skippedItems = [];
   }
 }
 
@@ -322,7 +434,6 @@ async function sendMessageToTab(message) {
       const tab = tabs[0];
       const url = tab.url || "";
 
-      // Validate URL: user must be on Coursera
       if (!url.includes("coursera.org")) {
         reject(new Error("Please open a Coursera lesson page."));
         return;
@@ -389,21 +500,27 @@ async function extractCurrentVideo(index, silentMode = false) {
     }
 
     if (!response.success) {
+      const pageType = response.pageType || "other";
+      const title = response.title || "Untitled Activity";
+
       if (response.reason === "is_quiz") {
-        if (!includeQuizzes.checked) {
-          replaceLog(searchingEntry, `Skipped Quiz: ${sanitizeFilename(response.title)}`, "skip");
-          return { success: false, reason: "quiz_skipped", isEndOfCourse: response.isEndOfCourse };
-        } else {
-          replaceLog(searchingEntry, `Quiz / Activity (no transcript): ${sanitizeFilename(response.title)}`, "skip");
-          return { success: false, reason: "no_transcript", isEndOfCourse: response.isEndOfCourse };
-        }
+        const reasonMsg = "Practice/Graded Quiz — No transcript (interactive test)";
+        addSkippedItem(title, pageType, reasonMsg);
+        replaceLog(searchingEntry, `Skipped Quiz: ${sanitizeFilename(title)}`, "skip");
+        return { success: false, reason: "quiz_skipped", isEndOfCourse: response.isEndOfCourse };
       }
 
       if (response.reason === "no_transcript") {
-        replaceLog(searchingEntry, "No transcript found on this page — skipping.", "skip");
+        const reasonMsg = pageType === "lab" ? "Hands-on Project / Guided Lab — Interactive sandbox, no transcript"
+          : pageType === "discussion" ? "Discussion Forum — Community prompt, no transcript"
+          : pageType === "assignment" ? "Peer/Programmatic Assignment — Task rubric, no transcript"
+          : "No transcript available on this page";
+        addSkippedItem(title, pageType, reasonMsg);
+        replaceLog(searchingEntry, `Skipped: ${sanitizeFilename(title)} (${reasonMsg})`, "skip");
         return { success: false, reason: "no_transcript", isEndOfCourse: response.isEndOfCourse };
       }
 
+      addSkippedItem(title, pageType, response.reason || "Skipped");
       replaceLog(searchingEntry, `Skipped: ${response.reason || "Unknown issue"}`, "skip");
       return { success: false, reason: response.reason || "skip", isEndOfCourse: response.isEndOfCourse };
     }
@@ -411,10 +528,12 @@ async function extractCurrentVideo(index, silentMode = false) {
     // Check user content filters (Videos vs Readings)
     const isVideo = !response.transcript.includes("\n\n");
     if (isVideo && !includeVideos.checked) {
+      addSkippedItem(response.title, "video", "Excluded by filter: Videos unchecked");
       replaceLog(searchingEntry, `Skipped Video (Videos unchecked): ${sanitizeFilename(response.title)}`, "skip");
       return { success: false, reason: "filtered_video", isEndOfCourse: response.isEndOfCourse };
     }
     if (!isVideo && !includeReadings.checked) {
+      addSkippedItem(response.title, "reading", "Excluded by filter: Readings unchecked");
       replaceLog(searchingEntry, `Skipped Reading (Readings unchecked): ${sanitizeFilename(response.title)}`, "skip");
       return { success: false, reason: "filtered_reading", isEndOfCourse: response.isEndOfCourse };
     }
@@ -433,7 +552,6 @@ async function extractCurrentVideo(index, silentMode = false) {
 
     replaceLog(searchingEntry, `[${fileIndex}] ${sanitizeFilename(response.title)}`, "success");
 
-    // Only trigger immediate individual download in manual mode
     if (!silentMode) {
       await downloadSingleFile(response.title, response.transcript, format, fileIndex);
     }
@@ -462,6 +580,7 @@ async function goToNextVideo() {
 async function runAutoMode() {
   shouldStop = false;
   collectedFiles = [];
+  skippedItems = [];
   await saveCollectedFiles();
   setButtonState(true);
   log("Auto mode — mining transcripts silently...");
@@ -503,7 +622,7 @@ async function runAutoMode() {
 
 function extractCurriculumDirectly() {
   const links = Array.from(document.querySelectorAll('a[href*="/learn/"]'));
-  const validPathKeywords = ["/lecture/", "/supplement/", "/quiz/", "/exam/", "/assignment-submission/", "/peer/", "/discussionPrompt/", "/ungradedWidget/"];
+  const validPathKeywords = ["/lecture/", "/supplement/", "/quiz/", "/practice-quiz/", "/exam/", "/assignment-submission/", "/peer/", "/discussionPrompt/", "/discussion/", "/ungradedWidget/", "/ungradedLti/", "/lab/"];
 
   const modulesMap = new Map();
   const seenHrefs = new Set();
@@ -528,7 +647,7 @@ function extractCurriculumDirectly() {
     else if (cleanHref.includes("/exam/")) type = "exam";
     else if (cleanHref.includes("/assignment-submission/") || cleanHref.includes("/peer/")) type = "assignment";
     else if (cleanHref.includes("/discussionPrompt/") || cleanHref.includes("/discussion/")) type = "discussion";
-    else if (cleanHref.includes("/ungradedWidget/") || cleanHref.includes("/ungradedLti/")) type = "lab";
+    else if (cleanHref.includes("/ungradedWidget/") || cleanHref.includes("/ungradedLti/") || cleanHref.includes("/lab/")) type = "lab";
 
     let rawText = cleanStr(a.innerText || "");
     let title = rawText
@@ -624,7 +743,6 @@ function updateCurriculumStats() {
   selectedCountBadge.textContent = selected;
   mineSelectedBtn.style.display = selected > 0 ? "block" : "none";
 
-  // Update each module header checkbox & badge
   scannedModules.forEach((mod, modIdx) => {
     const modItems = curriculumList.querySelectorAll(`input.item-chk[data-module-idx="${modIdx}"]`);
     const modChecked = curriculumList.querySelectorAll(`input.item-chk[data-module-idx="${modIdx}"]:checked`);
@@ -671,13 +789,20 @@ function renderCurriculum(modules) {
       const rowEl = document.createElement("div");
       rowEl.className = "lesson-item-row";
 
+      // By default: check videos if includeVideos, readings if includeReadings, quizzes if includeQuizzes
       let isChecked = true;
       if (item.type === "video") isChecked = includeVideos.checked;
       else if (item.type === "reading") isChecked = includeReadings.checked;
       else if (item.type === "quiz" || item.type === "exam" || item.type === "assignment") isChecked = includeQuizzes.checked;
+      else if (item.type === "lab" || item.type === "discussion") isChecked = false; // Excluded by default
 
       const typeBadgeClass = `badge-${item.type}`;
-      const typeLabel = item.type === "reading" ? "READ" : item.type === "video" ? "VID" : item.type.toUpperCase();
+      const typeLabel = item.type === "reading" ? "READ"
+        : item.type === "video" ? "VID"
+        : item.type === "assignment" ? "ASSIGN"
+        : item.type === "discussion" ? "DISC"
+        : item.type === "lab" ? "LAB"
+        : item.type.toUpperCase();
 
       rowEl.innerHTML = `
         <input type="checkbox" class="item-chk" 
@@ -737,6 +862,7 @@ async function runMineSelected() {
 
   shouldStop = false;
   collectedFiles = [];
+  skippedItems = [];
   await saveCollectedFiles();
   setButtonState(true);
   logBox.innerHTML = "";
@@ -776,7 +902,145 @@ async function runMineSelected() {
   }
 }
 
-// ─── Event listeners ──────────────────────────────────────────────────────────
+// ─── Course Automator Handlers (Inspired by coursera-skip-tool) ───────────────
+
+btnAutoMarkCurrent.addEventListener("click", async () => {
+  automatorStatusNote.textContent = "Processing lesson completion...";
+  try {
+    const res = await sendMessageToTab({ action: "completeLesson" });
+    if (res && res.success) {
+      automatorStatusNote.textContent = `Completed: ${res.message}`;
+    } else {
+      automatorStatusNote.textContent = `Notice: ${res ? res.error : "Could not complete this page"}`;
+    }
+  } catch (err) {
+    automatorStatusNote.textContent = `Error: ${err.message}`;
+  }
+});
+
+btnAssistPeerReview.addEventListener("click", async () => {
+  automatorStatusNote.textContent = "Assisting peer review rubrics & comments...";
+  try {
+    const res = await sendMessageToTab({ action: "assistPeerReview" });
+    if (res && res.success) {
+      automatorStatusNote.textContent = res.message;
+    } else {
+      automatorStatusNote.textContent = `Notice: ${res ? res.error : "Please open a peer review page first"}`;
+    }
+  } catch (err) {
+    automatorStatusNote.textContent = `Error: ${err.message}`;
+  }
+});
+
+btnAutoLoopCourse.addEventListener("click", async () => {
+  automatorStatusNote.textContent = "Auto-completing course queue...";
+  // Switch to transcript miner auto mode to auto-advance
+  switchView("viewMiner");
+  autoToggle.checked = true;
+  autoToggle.dispatchEvent(new Event("change"));
+  extractBtn.click();
+});
+
+// ─── Gemini AI Co-Pilot Handlers ──────────────────────────────────────────────
+
+btnSaveKey.addEventListener("click", async () => {
+  const key = geminiApiKeyInput.value.trim();
+  if (!key) {
+    alert("Please enter a valid Gemini API key.");
+    return;
+  }
+  userGeminiApiKey = key;
+  await setStorage({ geminiApiKey: key });
+  btnSaveKey.textContent = "Saved!";
+  setTimeout(() => { btnSaveKey.textContent = "Save"; }, 2000);
+});
+
+async function callGemini(promptText) {
+  if (!userGeminiApiKey) {
+    throw new Error("Please enter your free Google Gemini API key above.");
+  }
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${userGeminiApiKey}`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: promptText }] }]
+    })
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error?.message || `Gemini API request failed (${response.status})`);
+  }
+
+  const data = await response.json();
+  const candidate = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  return candidate || "No answer generated by Gemini.";
+}
+
+btnAiSolveQuiz.addEventListener("click", async () => {
+  aiOutputBox.style.display = "block";
+  aiOutputBox.textContent = "Scanning quiz questions on page...";
+
+  try {
+    const res = await sendMessageToTab({ action: "getQuizQuestions" });
+    if (!res || !res.success || !res.questions || res.questions.length === 0) {
+      aiOutputBox.textContent = "No quiz questions found on this page. Make sure you are on a Coursera quiz/practice test page.";
+      return;
+    }
+
+    aiOutputBox.textContent = `Found ${res.questions.length} question(s). Asking Gemini AI for answers & explanations...`;
+
+    let prompt = "You are an expert Coursera academic tutor. Solve these quiz questions. For each question, specify the exact best choice and a concise 1-2 sentence explanation.\n\n";
+    res.questions.forEach((q, idx) => {
+      prompt += `Question ${idx + 1}: ${q.prompt}\n`;
+      q.options.forEach((opt, oIdx) => {
+        prompt += `  [${oIdx + 1}] ${opt.text}\n`;
+      });
+      prompt += "\n";
+    });
+
+    const aiAnswer = await callGemini(prompt);
+    aiOutputBox.textContent = aiAnswer;
+
+  } catch (err) {
+    aiOutputBox.textContent = `Error: ${err.message}`;
+  }
+});
+
+btnAiSummarize.addEventListener("click", async () => {
+  aiOutputBox.style.display = "block";
+  aiOutputBox.textContent = "Extracting current lesson transcript...";
+
+  try {
+    const res = await sendMessageToTab({ action: "getTranscript" });
+    if (!res || !res.success || !res.transcript) {
+      aiOutputBox.textContent = "No transcript found on this page. Please open a video lecture or reading lesson first.";
+      return;
+    }
+
+    aiOutputBox.textContent = `Transcript loaded (${res.transcript.length} chars). Generating executive study sheet...`;
+
+    const prompt = `You are a high-level academic assistant. Create a high-yield executive study sheet for the following Coursera lesson:
+Title: ${res.title}
+
+Transcript:
+${res.transcript.substring(0, 15000)}
+
+Output formatted as:
+1. Executive Summary (2-3 sentences)
+2. Core Takeaways & Concepts (bullet points)
+3. Key Definitions or Formulas`;
+
+    const summary = await callGemini(prompt);
+    aiOutputBox.textContent = summary;
+
+  } catch (err) {
+    aiOutputBox.textContent = `Error: ${err.message}`;
+  }
+});
+
+// ─── Curriculum Explorer Events ──────────────────────────────────────────────
 
 scanCurriculumBtn.addEventListener("click", async () => {
   const isVisible = curriculumDrawer.style.display !== "none";
@@ -844,6 +1108,8 @@ mineSelectedBtn.addEventListener("click", async () => {
   await runMineSelected();
 });
 
+// ─── Auto advance toggle & Action buttons ─────────────────────────────────────
+
 autoToggle.addEventListener("change", () => {
   if (autoToggle.checked) {
     modeTitle.textContent = "Auto-advance: On";
@@ -860,6 +1126,7 @@ autoToggle.addEventListener("change", () => {
 
 extractBtn.addEventListener("click", async () => {
   collectedFiles = [];
+  skippedItems = [];
   await saveCollectedFiles();
   logBox.innerHTML = "";
   downloadBtn.style.display = "none";
@@ -898,8 +1165,10 @@ downloadBtn.addEventListener("click", async () => {
 
 clearBtn.addEventListener("click", async () => {
   collectedFiles = [];
-  await setStorage({ collectedFiles: "[]" });
+  skippedItems = [];
+  await setStorage({ collectedFiles: "[]", skippedItems: "[]" });
   logBox.innerHTML = "";
+  renderSkippedItems();
   downloadBtn.style.display = "none";
   logSection.style.display = "none";
 });

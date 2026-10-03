@@ -800,6 +800,316 @@ body {
   font-size: 13.5px;
 }
 
+/* ─── Mode Navigation Tabs ─────────────────────────────────────────────────── */
+
+.mode-navigation-bar {
+  display: flex;
+  background-color: #EFECE6;
+  border-bottom: 1px solid var(--border-light);
+  padding: 4px 16px;
+  gap: 6px;
+}
+
+.nav-tab-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.nav-tab-btn:hover {
+  color: var(--text-main);
+  background-color: rgba(255, 255, 255, 0.4);
+}
+
+.nav-tab-btn.active {
+  background-color: #FFFFFF;
+  color: var(--teal-primary);
+  border-color: var(--border-card);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.tab-svg {
+  flex-shrink: 0;
+}
+
+/* ─── View Panels ──────────────────────────────────────────────────────────── */
+
+.view-panel {
+  display: none;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.view-panel.active {
+  display: flex;
+}
+
+/* ─── Feed Tabs & Skipped Audit ────────────────────────────────────────────── */
+
+.feed-tabs-row {
+  display: flex;
+  gap: 6px;
+}
+
+.feed-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-subtle);
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.feed-tab-btn.active {
+  color: var(--teal-primary);
+  border-bottom: 1.5px solid var(--teal-primary);
+}
+
+.empty-skipped-hint {
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-style: italic;
+  padding: 4px 0;
+}
+
+.skipped-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0;
+  border-bottom: 1px solid #ECEAE4;
+}
+
+.skipped-row:last-child {
+  border-bottom: none;
+}
+
+.skipped-title-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.skipped-reason-line {
+  font-size: 10.5px;
+  color: #B45309;
+  padding-left: 4px;
+}
+
+/* ─── Automator & Gemini AI Cards ─────────────────────────────────────────── */
+
+.feature-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.feature-icon-badge {
+  width: 34px;
+  height: 34px;
+  background-color: var(--teal-tint);
+  border: 1px solid var(--teal-border);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--teal-primary);
+  flex-shrink: 0;
+}
+
+.feature-icon-badge.ai-badge {
+  background-color: #F3E8FF;
+  border-color: #D8B4FE;
+  color: #7E22CE;
+}
+
+.card-heading {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.card-subheading {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.automator-actions-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.action-card-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #FFFFFF;
+  border: 1px solid var(--border-card);
+  border-radius: 10px;
+  padding: 10px 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  width: 100%;
+}
+
+.action-card-btn:hover {
+  background-color: #F8F7F4;
+  border-color: #B5B2A9;
+}
+
+.action-card-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.action-card-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.action-card-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.action-card-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  line-height: 1.3;
+}
+
+.automator-status-note {
+  margin-top: 12px;
+  padding: 8px 10px;
+  background: #F8F8F6;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* API Key Input */
+.api-key-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.input-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.input-row {
+  display: flex;
+  gap: 6px;
+}
+
+.text-input {
+  flex: 1;
+  border: 1px solid var(--border-card);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text-main);
+  background: #FFFFFF;
+}
+
+.text-input:focus {
+  outline: none;
+  border-color: var(--teal-primary);
+  box-shadow: 0 0 0 2px var(--teal-tint);
+}
+
+.api-hint {
+  font-size: 10.5px;
+  color: var(--text-subtle);
+}
+
+.api-hint a {
+  color: var(--teal-primary);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.api-hint a:hover {
+  text-decoration: underline;
+}
+
+.ai-output-box {
+  margin-top: 10px;
+  max-height: 160px;
+  overflow-y: auto;
+  background-color: #F8F8F6;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--text-main);
+}
+
+/* ─── All 6 Content Badges ─────────────────────────────────────────────────── */
+
+.badge-video {
+  background-color: #E0F2FE;
+  color: #0369A1;
+}
+
+.badge-reading {
+  background-color: #F0FDF4;
+  color: #15803D;
+}
+
+.badge-quiz, .badge-exam {
+  background-color: #FEF3C7;
+  color: #B45309;
+}
+
+.badge-assignment {
+  background-color: #EFF6FF;
+  color: #1D4ED8;
+}
+
+.badge-lab {
+  background-color: #F3E8FF;
+  color: #7E22CE;
+}
+
+.badge-discussion {
+  background-color: #FFE4E6;
+  color: #BE123C;
+}
+
+.badge-other {
+  background-color: #F3F4F6;
+  color: #4B5563;
+}
+
 /* ─── Bottom Status Bar ────────────────────────────────────────────────────── */
 
 .app-status-bar {
@@ -835,3 +1145,4 @@ body {
   color: var(--text-muted);
   line-height: 1.3;
 }
+
