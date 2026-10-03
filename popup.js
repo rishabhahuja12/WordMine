@@ -310,7 +310,7 @@ async function saveCollectedFiles() {
 
 async function loadCollectedFiles() {
   try {
-    const data = await getStorage(["collectedFiles", "skippedItems", "geminiApiKey", "autoAdvance"]);
+    const data = await getStorage(["collectedFiles", "skippedItems", "geminiApiKey", "autoAdvance", "lastAiOutput", "lastCustomPrompt"]);
     if (data.autoAdvance !== undefined && autoToggle) {
       autoToggle.checked = data.autoAdvance;
       autoToggle.dispatchEvent(new Event("change"));
@@ -318,6 +318,18 @@ async function loadCollectedFiles() {
     if (data.geminiApiKey) {
       userGeminiApiKey = data.geminiApiKey;
       if (geminiApiKeyInput) geminiApiKeyInput.value = userGeminiApiKey;
+    }
+
+    if (data.lastAiOutput && aiOutputBox && aiOutputContainer) {
+      aiOutputContainer.style.display = "flex";
+      aiOutputBox.style.display = "block";
+      aiOutputBox.innerHTML = data.lastAiOutput;
+      aiOutputBox.dataset.rawText = data.lastAiOutput;
+    }
+
+    if (data.lastCustomPrompt && typeof universalCustomPrompt !== "undefined" && universalCustomPrompt) {
+      universalCustomPrompt.value = data.lastCustomPrompt;
+      universalCustomPrompt.dispatchEvent(new Event("input"));
     }
 
     if (data.skippedItems) {
@@ -1185,7 +1197,24 @@ function showAiOutput(text, isError = false) {
       aiOutputBox.style.borderColor = "var(--border-card)";
     }
     aiOutputBox.scrollTop = 0;
+    
+    if (!isError) {
+      chrome.storage.local.set({ lastAiOutput: text });
+    }
   }
+}
+
+const btnClearAiOutput = document.getElementById("btnClearAiOutput");
+
+if (btnClearAiOutput) {
+  btnClearAiOutput.addEventListener("click", () => {
+    if (aiOutputContainer) aiOutputContainer.style.display = "none";
+    if (aiOutputBox) {
+      aiOutputBox.dataset.rawText = "";
+      aiOutputBox.innerHTML = "";
+    }
+    chrome.storage.local.remove(['lastAiOutput']);
+  });
 }
 
 if (btnCopyAiOutput) {
@@ -1385,7 +1414,8 @@ async function captureScreen() {
 }
 
 if (universalCustomPrompt && universalBtnTitle && universalBtnDesc) {
-  universalCustomPrompt.addEventListener("input", () => {
+  universalCustomPrompt.addEventListener("input", (e) => {
+    chrome.storage.local.set({ lastCustomPrompt: e.target.value });
     if (universalCustomPrompt.value.trim().length > 0) {
       universalBtnTitle.textContent = "Run Custom Prompt";
       universalBtnDesc.textContent = "Sends your specific instruction along with the screen & text context.";
@@ -1411,8 +1441,29 @@ if (btnAiSmartAuto) {
       
       const customPromptVal = universalCustomPrompt ? universalCustomPrompt.value.trim() : "";
       let finalPrompt = "";
-      
-      if (customPromptVal) {
+      const data = await getStorage(['lastAiOutput']);
+      const isFollowUp = customPromptVal && data.lastAiOutput;
+
+      if (isFollowUp) {
+        showAiOutput("Context gathered! Running follow-up instruction...");
+        finalPrompt = `You are a universal intelligent assistant. The user is following up on your previous answer regarding their current webpage.
+        
+YOUR PREVIOUS ANSWER:
+${data.lastAiOutput}
+
+USER'S NEW FOLLOW-UP INSTRUCTION:
+${customPromptVal}
+
+CRITICAL FORMATTING RULES:
+- NEVER use LaTeX for math (e.g. \\frac, \\sum, \\rightarrow, $...$, $$...$$).
+- ALWAYS use plain text (e.g. A / B, SUM(...), ->, =>).
+- Use standard markdown tables and dash bullets.
+
+Analyze the webpage text context and the screenshot (if applicable) to fulfill this follow-up instruction precisely.
+
+Webpage Text Context:
+${text ? text : "(No text available)"}`;
+      } else if (customPromptVal) {
         showAiOutput("Context gathered! Running your custom prompt...");
         finalPrompt = `You are a universal intelligent assistant. The user has provided a specific question or instruction regarding their current webpage.
         
