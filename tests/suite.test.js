@@ -367,6 +367,60 @@ runTest('Taxonomy engine correctly classifies all 6 Coursera content archetypes'
     assert.ok(css.includes('.automator-status-note'), 'Missing .automator-status-note CSS rule');
   });
 
+  // ─── Test 14: Coursera Context URL Parser ────────────────────────────────
+  runTest('Coursera course context parser extracts slug, itemType, and itemId', () => {
+    function parseContext(href) {
+      const match = href.match(
+        /\/learn\/([^/]+)\/(lecture|supplement|quiz|practice-quiz|exam|programming|discussionPrompt|dialogue|ungradedWidget|ungradedLti|lab)\/([^/?#]+)/i
+      );
+      if (match) {
+        let itemType = match[2];
+        if (itemType.toLowerCase() === "discussionprompt") itemType = "discussionPrompt";
+        return { courseSlug: match[1], itemType, itemId: match[3] };
+      }
+      const peerMatch = href.match(
+        /\/learn\/([^/]+)\/(?:peer-review|peer|peer-assignment|submit-revisions|assignment-submission)\/([^/?#]+)/i
+      );
+      if (peerMatch) {
+        return { courseSlug: peerMatch[1], itemType: "peer", itemId: peerMatch[2] };
+      }
+      return null;
+    }
+
+    const videoCtx = parseContext("https://www.coursera.org/learn/deep-learning-ai/lecture/abc1234/welcome-video?autoEnroll=false");
+    assert.deepStrictEqual(videoCtx, { courseSlug: "deep-learning-ai", itemType: "lecture", itemId: "abc1234" });
+
+    const readingCtx = parseContext("https://www.coursera.org/learn/deep-learning-ai/supplement/xyz5678/reading-notes#section1");
+    assert.deepStrictEqual(readingCtx, { courseSlug: "deep-learning-ai", itemType: "supplement", itemId: "xyz5678" });
+
+    const peerCtx = parseContext("https://www.coursera.org/learn/deep-learning-ai/peer-review/peer999/give-feedback");
+    assert.deepStrictEqual(peerCtx, { courseSlug: "deep-learning-ai", itemType: "peer", itemId: "peer999" });
+  });
+
+  // ─── Test 15: Video Progress Calculation ──────────────────────────────────
+  runTest('Video progress report calculation sets viewedUpTo near video duration', () => {
+    function calculateProgress(userId, courseId, videoId, duration) {
+      const progressId = `${userId}~${courseId}~${videoId}`;
+      const validDuration = (typeof duration === "number" && isFinite(duration) && duration > 0) ? duration : 9999999;
+      const viewedUpTo = Math.max(0, validDuration - 1000);
+      return { progressId, viewedUpTo };
+    }
+
+    const p = calculateProgress("12345", "course-abc", "vid-789", 300000);
+    assert.strictEqual(p.progressId, "12345~course-abc~vid-789");
+    assert.strictEqual(p.viewedUpTo, 299000, "Must be duration minus 1000ms");
+  });
+
+  // ─── Test 16: Bulk Complete Bindings ──────────────────────────────────────
+  runTest('popup.html and popup.js contain Bulk Complete action bindings and elements', () => {
+    const html = fs.readFileSync(path.join(ROOT_DIR, 'popup.html'), 'utf8');
+    const js = fs.readFileSync(path.join(ROOT_DIR, 'popup.js'), 'utf8');
+
+    assert.ok(html.includes('id="btnBulkCompleteCourse"'), 'popup.html must have btnBulkCompleteCourse');
+    assert.ok(js.includes('btnBulkCompleteCourse'), 'popup.js must bind btnBulkCompleteCourse');
+    assert.ok(js.includes('markAllCompleted'), 'popup.js must send markAllCompleted action');
+  });
+
   console.log('\n====================================================');
   console.log(`Results: ${passedTests} passed, ${totalTests - passedTests} failed`);
   console.log('====================================================');

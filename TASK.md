@@ -90,3 +90,12 @@ To eliminate user confusion when navigating mixed courses, WordMine implements a
   - [x] Complete CSS styling in `styles.css` for all action cards, API key inputs, and AI output displays.
   - [x] Fast one-click clipboard copy for Gemini AI solutions and summaries.
   - [x] 13/13 automated test suite passes with zero emojis and 100% clean compilation.
+
+- [x] **Phase 7: True Coursera Backend REST/OnDemand API Engine & Floating Widget**
+  - [x] Reverse-engineered Coursera API authentication pipeline utilizing session CSRF tokens (`csrf3-token`), `X-Coursera-Application: nautilus`, `X-Coursera-Version: ondemand`, and credential inclusion.
+  - [x] Multi-tier video completion engine calling `opencourse.v1/user/.../lecture/videoEvents/ended`, metadata fetching (`onDemandLectureVideos.v1`), and dual-method progress reporting (`onDemandVideoProgresses.v1` with `viewedUpTo = duration - 1000`).
+  - [x] Reading completion engine reporting via `onDemandSupplementCompletions.v1` and fallback `progressState: COMPLETED` PUT requests.
+  - [x] Bulk Complete Entire Course batch engine retrieving complete syllabus via `onDemandCourseMaterials.v2` and processing multi-item batches with real-time progress broadcast.
+  - [x] Duplicate-protected discussion prompt answering via `onDemandCourseForumAnswers.v1`.
+  - [x] Non-destructive in-page floating widget encapsulated in Shadow DOM (`#wordmine-floating-host`) with draggable header, context pills, and one-click execution directly inside Coursera.
+  - [x] 16/16 automated engineering test suite passes with zero emojis and empirical verification.

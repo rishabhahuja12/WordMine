@@ -14,8 +14,11 @@
 - **Transparent Skipped Audit Log**: Live audit feed with badge counters and explicit explanations whenever non-transcript items (interactive labs, discussion prompts, quizzes) are encountered.
 
 ### 2. Course Automator *(Inspired by coursera-skip-tool)*
-- **Complete Current Lesson**: Instant completion for video lectures (`timeupdate`/`ended`) and reading materials (scroll and mark complete).
-- **Handle Discussion Prompts**: Injects thoughtful, constructive academic reflections into discussion forum prompts.
+- **Coursera On-Demand API Engine**: Authenticates with Coursera's internal REST endpoints using session CSRF tokens and application headers (`nautilus`/`ondemand`) to officially register video progress (`onDemandVideoProgresses.v1`), completion events (`opencourse.v1/lecture/videoEvents/ended`), and reading completions (`onDemandSupplementCompletions.v1`).
+- **Complete Current Lesson**: Instantly verifies and registers completion for current video lecture or reading material directly on Coursera's servers with multi-tier fallback.
+- **Bulk Complete Entire Course**: Batch API runner completes all eligible videos and readings across the whole course in seconds.
+- **In-Page Floating Widget**: Non-intrusive Shadow DOM floating widget directly on Coursera pages for one-click completion without opening the popup.
+- **Handle Discussion Prompts**: Injects thoughtful, constructive academic reflections into discussion forum prompts with duplicate prevention.
 - **Assist Peer Review**: Automatically scores rubric criteria with maximum points, fills varied constructive feedback into comments, and acknowledges confirmation requirements.
 - **Auto-Loop Course Queue**: Hands-free navigation through eligible course sequences.
 

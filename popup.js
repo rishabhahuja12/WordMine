@@ -59,6 +59,7 @@ const selectedCountBadge = document.getElementById("selectedCountBadge");
 
 // Automator View DOM
 const btnAutoMarkCurrent = document.getElementById("btnAutoMarkCurrent");
+const btnBulkCompleteCourse = document.getElementById("btnBulkCompleteCourse");
 const btnHandleDiscussion = document.getElementById("btnHandleDiscussion");
 const btnAssistPeerReview = document.getElementById("btnAssistPeerReview");
 const btnAutoLoopCourse = document.getElementById("btnAutoLoopCourse");
@@ -1001,6 +1002,33 @@ if (btnAutoMarkCurrent) {
     }
   });
 }
+
+if (btnBulkCompleteCourse) {
+  btnBulkCompleteCourse.addEventListener("click", async () => {
+    if (automatorStatusNote) automatorStatusNote.textContent = "Starting bulk completion of all course lessons via batch API...";
+    btnBulkCompleteCourse.disabled = true;
+    try {
+      const res = await sendMessageToTab({ action: "markAllCompleted" });
+      if (res && res.success) {
+        if (automatorStatusNote) automatorStatusNote.textContent = res.message;
+      } else {
+        if (automatorStatusNote) automatorStatusNote.textContent = `Notice: ${res ? res.error : "Could not complete course lessons."}`;
+      }
+    } catch (err) {
+      if (automatorStatusNote) automatorStatusNote.textContent = `Error: ${err.message}`;
+    } finally {
+      btnBulkCompleteCourse.disabled = false;
+    }
+  });
+}
+
+chrome.runtime.onMessage.addListener((message) => {
+  if (message.action === "bulkProgress") {
+    if (automatorStatusNote) {
+      automatorStatusNote.textContent = message.message || `Processing course lessons: ${message.current || 0} / ${message.total || 0}...`;
+    }
+  }
+});
 
 if (btnHandleDiscussion) {
   btnHandleDiscussion.addEventListener("click", async () => {
