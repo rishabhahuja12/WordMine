@@ -394,8 +394,16 @@
               <p class="card-subheading">Powered by your selected AI provider via Settings</p>
             </div>
           </div>
+          
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px; background:var(--bg-main); padding:8px 12px; border-radius:8px; border:1px solid var(--border-subtle);">
+            <span style="font-size:12px; font-weight:600; color:var(--text-main);">AI Scope:</span>
+            <select id="aiModeSelect" class="text-input" style="padding:4px 8px; font-size:12px; width:auto;">
+              <option value="coursera">Coursera Specialist</option>
+              <option value="universal">Universal (Any Webpage)</option>
+            </select>
+          </div>
 
-          <div class="automator-actions-grid">
+          <div class="automator-actions-grid" id="courseraAiActions">
             <button class="action-card-btn" id="btnAiSolveQuiz">
               <div class="action-card-icon ai-icon">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
@@ -436,6 +444,29 @@
               </div>
             </button>
           </div>
+
+          <div class="automator-actions-grid" id="universalAiActions" style="display:none;">
+            <button class="action-card-btn" id="btnAiSummarizePage">
+              <div class="action-card-icon ai-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+              </div>
+              <div class="action-card-text">
+                <span class="action-card-title">Summarize Webpage</span>
+                <span class="action-card-desc">Reads the current page and provides a concise summary.</span>
+              </div>
+            </button>
+
+            <button class="action-card-btn" id="btnAiExplainPage">
+              <div class="action-card-icon ai-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              </div>
+              <div class="action-card-text">
+                <span class="action-card-title">Explain Concepts</span>
+                <span class="action-card-desc">Simplifies and explains the main topics on this page.</span>
+              </div>
+            </button>
+          </div>
+
 
           <div class="ai-output-container" id="aiOutputContainer" style="display:none;">
             <div class="ai-output-header">

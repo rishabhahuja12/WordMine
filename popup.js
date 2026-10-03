@@ -80,6 +80,11 @@ const aiOutputContainer = document.getElementById("aiOutputContainer");
 const aiOutputBox = document.getElementById("aiOutputBox");
 const btnCopyAiOutput = document.getElementById("btnCopyAiOutput");
 const copyBtnLabel = document.getElementById("copyBtnLabel");
+const aiModeSelect = document.getElementById("aiModeSelect");
+const courseraAiActions = document.getElementById("courseraAiActions");
+const universalAiActions = document.getElementById("universalAiActions");
+const btnAiSummarizePage = document.getElementById("btnAiSummarizePage");
+const btnAiExplainPage = document.getElementById("btnAiExplainPage");
 
 // Status Bar
 const statusIndicator = document.getElementById("statusIndicator");
@@ -143,6 +148,18 @@ function switchView(targetViewId) {
 if (tabMinerBtn) tabMinerBtn.addEventListener("click", () => switchView("viewMiner"));
 if (tabAutomatorBtn) tabAutomatorBtn.addEventListener("click", () => switchView("viewAutomator"));
 if (tabAiBtn) tabAiBtn.addEventListener("click", () => switchView("viewAi"));
+
+if (aiModeSelect) {
+  aiModeSelect.addEventListener("change", (e) => {
+    if (e.target.value === "coursera") {
+      if (courseraAiActions) courseraAiActions.style.display = "grid";
+      if (universalAiActions) universalAiActions.style.display = "none";
+    } else {
+      if (courseraAiActions) courseraAiActions.style.display = "none";
+      if (universalAiActions) universalAiActions.style.display = "grid";
+    }
+  });
+}
 
 // ─── Feed Tabs (Mined vs Skipped Audit) ──────────────────────────────────────
 
@@ -532,8 +549,17 @@ async function detectActiveTab() {
     }
     const url = tabs[0].url || "";
     if (!url.includes("coursera.org")) {
-      updateStatus("muted", "Open a Coursera lesson to begin.");
+      updateStatus("ready", "Universal AI Mode available.");
+      if (aiModeSelect) {
+        aiModeSelect.value = "universal";
+        aiModeSelect.dispatchEvent(new Event("change"));
+      }
       return;
+    } else {
+      if (aiModeSelect) {
+        aiModeSelect.value = "coursera";
+        aiModeSelect.dispatchEvent(new Event("change"));
+      }
     }
 
     if (url.includes("/lecture/") || url.includes("/supplement/")) {
@@ -1233,6 +1259,49 @@ async function callAI(prompt) {
   if (!apiKey) throw new Error("Please enter your API key in Settings/Onboarding.");
   
   return await callAIWithKey(provider, apiKey, prompt, data.customModel);
+}
+
+async function getUniversalPageText() {
+  const tabs = await new Promise(r => chrome.tabs.query({ active: true, currentWindow: true }, r));
+  if (!tabs || !tabs[0]) throw new Error("No active browser tab found.");
+  if (tabs[0].url.startsWith("chrome://") || tabs[0].url.startsWith("edge://")) throw new Error("Cannot read browser settings pages.");
+  
+  const res = await chrome.scripting.executeScript({
+    target: { tabId: tabs[0].id },
+    func: () => document.body.innerText
+  });
+  if (!res || !res[0] || !res[0].result) throw new Error("Could not read text from this page.");
+  return res[0].result.substring(0, 15000);
+}
+
+if (btnAiSummarizePage) {
+  btnAiSummarizePage.addEventListener("click", async () => {
+    showAiOutput("Reading webpage content...");
+    try {
+      const text = await getUniversalPageText();
+      showAiOutput(`Read webpage (${text.length} characters). Summarizing...`);
+      const prompt = "Please provide a concise, well-structured summary of the following webpage text:\n\n" + text;
+      const res = await callAI(prompt);
+      showAiOutput(res);
+    } catch (err) {
+      showAiOutput(err.message, true);
+    }
+  });
+}
+
+if (btnAiExplainPage) {
+  btnAiExplainPage.addEventListener("click", async () => {
+    showAiOutput("Reading webpage content...");
+    try {
+      const text = await getUniversalPageText();
+      showAiOutput(`Read webpage (${text.length} characters). Generating explanation...`);
+      const prompt = "Please simplify and explain the main concepts and topics discussed in this webpage text in an easy-to-understand way:\n\n" + text;
+      const res = await callAI(prompt);
+      showAiOutput(res);
+    } catch (err) {
+      showAiOutput(err.message, true);
+    }
+  });
 }
 
 if (btnAiSolveQuiz) {
