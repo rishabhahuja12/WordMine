@@ -1258,45 +1258,69 @@ if (btnSaveKey) {
 }
 
 async function callAIWithKey(provider, apiKey, prompt) {
-  let url, headers, body;
-  if (provider === "gemini") {
-    url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-    headers = { "Content-Type": "application/json" };
-    body = { contents: [{ parts: [{ text: prompt }] }] };
-  } else if (provider === "groq") {
-    url = "https://api.groq.com/openai/v1/chat/completions";
-    headers = { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };
-    body = { model: "llama-3.3-70b-versatile", messages: [{ role: "user", content: prompt }] };
-  } else if (provider === "grok") {
-    url = "https://api.x.ai/v1/chat/completions";
-    headers = { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };
-    body = { model: "grok-2-latest", messages: [{ role: "user", content: prompt }] };
-  } else if (provider === "openai") {
-    url = "https://api.openai.com/v1/chat/completions";
-    headers = { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };
-    body = { model: "gpt-4o-mini", messages: [{ role: "user", content: prompt }] };
-  } else if (provider === "mistral") {
-    url = "https://api.mistral.ai/v1/chat/completions";
-    headers = { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };
-    body = { model: "mistral-small-latest", messages: [{ role: "user", content: prompt }] };
-  }
-
-  const response = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
-  if (response.status === 429) {
-    if (typeof updateStatus === "function") updateStatus("warning", `Rate limit hit on ${provider} — change provider in Settings`);
-    throw new Error(`Rate limit hit on ${provider} — change provider in Settings`);
-  }
-  if (!response.ok) {
-    const errData = await response.json().catch(() => ({}));
-    throw new Error(errData.error?.message || `API request failed (${response.status})`);
-  }
-  const data = await response.json();
+  let models = [];
+  let baseUrl = "";
+  let headers = {};
   
   if (provider === "gemini") {
-    return data.candidates?.[0]?.content?.parts?.[0]?.text;
-  } else {
-    return data.choices?.[0]?.message?.content;
+    models = ["gemini-1.5-flash", "gemini-2.0-flash"];
+  } else if (provider === "groq") {
+    models = ["llama-3.3-70b-versatile", "mixtral-8x7b-32768"];
+    baseUrl = "https://api.groq.com/openai/v1/chat/completions";
+    headers = { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };
+  } else if (provider === "grok") {
+    models = ["grok-2-latest"];
+    baseUrl = "https://api.x.ai/v1/chat/completions";
+    headers = { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };
+  } else if (provider === "openai") {
+    models = ["gpt-4o-mini"];
+    baseUrl = "https://api.openai.com/v1/chat/completions";
+    headers = { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };
+  } else if (provider === "mistral") {
+    models = ["mistral-small-latest"];
+    baseUrl = "https://api.mistral.ai/v1/chat/completions";
+    headers = { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };
   }
+
+  let lastError = null;
+
+  for (const model of models) {
+    try {
+      let url, body;
+      if (provider === "gemini") {
+        url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        headers = { "Content-Type": "application/json" };
+        body = { contents: [{ parts: [{ text: prompt }] }] };
+      } else {
+        url = baseUrl;
+        body = { model: model, messages: [{ role: "user", content: prompt }] };
+      }
+
+      const response = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+      if (response.status === 429) {
+        if (typeof updateStatus === "function") updateStatus("warning", `Rate limit hit on ${provider} — change provider in Settings`);
+        throw new Error(`Rate limit hit on ${provider} — change provider in Settings`);
+      }
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error?.message || `API request failed (${response.status}) on model ${model}`);
+      }
+      const data = await response.json();
+      
+      if (provider === "gemini") {
+        const candidate = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (candidate) return candidate;
+      } else {
+        const candidate = data.choices?.[0]?.message?.content;
+        if (candidate) return candidate;
+      }
+    } catch (e) {
+      if (e.message.includes("Rate limit hit")) throw e;
+      lastError = e;
+    }
+  }
+
+  throw lastError || new Error(`Failed to generate response from ${provider} API.`);
 }
 
 async function callAI(prompt) {
