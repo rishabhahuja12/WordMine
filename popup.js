@@ -1088,7 +1088,19 @@ function showAiOutput(text, isError = false) {
   if (aiOutputContainer) aiOutputContainer.style.display = "flex";
   if (aiOutputBox) {
     aiOutputBox.style.display = "block";
-    aiOutputBox.textContent = text;
+    aiOutputBox.dataset.rawText = text;
+    
+    let html = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    html = html.replace(/`(.*?)`/g, '<code style="background:#e5e7eb; padding:2px 4px; border-radius:4px; font-family:monospace; color:#0f172a;">$1</code>');
+    html = html.replace(/^-\s+(.*)/gm, '• $1');
+    html = html.replace(/^### (.*$)/gm, '<strong style="font-size:1.05em; color:var(--brand-main); display:block; margin-top:8px;">$1</strong>');
+    html = html.replace(/^## (.*$)/gm, '<strong style="font-size:1.15em; color:var(--brand-main); display:block; margin-top:10px;">$1</strong>');
+    html = html.replace(/^# (.*$)/gm, '<strong style="font-size:1.25em; color:var(--brand-main); display:block; margin-top:12px;">$1</strong>');
+    
+    aiOutputBox.innerHTML = html;
+
     if (isError) {
       aiOutputBox.style.color = "var(--status-red)";
       aiOutputBox.style.borderColor = "#FCA5A5";
@@ -1102,9 +1114,10 @@ function showAiOutput(text, isError = false) {
 
 if (btnCopyAiOutput) {
   btnCopyAiOutput.addEventListener("click", async () => {
-    if (!aiOutputBox || !aiOutputBox.textContent) return;
+    if (!aiOutputBox || (!aiOutputBox.dataset.rawText && !aiOutputBox.textContent)) return;
     try {
-      await navigator.clipboard.writeText(aiOutputBox.textContent);
+      const copyText = aiOutputBox.dataset.rawText || aiOutputBox.textContent;
+      await navigator.clipboard.writeText(copyText);
       if (copyBtnLabel) copyBtnLabel.textContent = "Copied!";
       setTimeout(() => { if (copyBtnLabel) copyBtnLabel.textContent = "Copy"; }, 2000);
     } catch (e) {
