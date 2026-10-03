@@ -8,6 +8,34 @@
 </head>
 <body>
 
+    <!-- Onboarding Screen -->
+    <div id="onboardingScreen" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:var(--canvas-bg); z-index:9999; padding:20px; flex-direction:column; gap:16px;">
+      <h1 class="brand-title" style="text-align:center; margin-top:20px;">WordMine</h1>
+      <p class="brand-subtitle" style="text-align:center;">Coursera Power Suite</p>
+      
+      <div class="api-key-box" style="margin-top:20px;">
+        <label class="input-label" for="onboardProvider">Select AI Provider</label>
+        <select id="onboardProvider" class="text-input" style="margin-bottom:12px;">
+          <option value="gemini">Google Gemini</option>
+          <option value="groq">Groq (Llama)</option>
+          <option value="grok">Grok (xAI)</option>
+          <option value="openai">OpenAI</option>
+          <option value="mistral">Mistral AI</option>
+        </select>
+        
+        <label class="input-label" for="onboardApiKey">API Key</label>
+        <input type="password" id="onboardApiKey" class="text-input" placeholder="Enter your key..." />
+        
+        <p class="api-hint" style="margin-top:8px;">
+          <a href="#" id="onboardKeyLink" target="_blank">Get free key</a>
+        </p>
+        
+        <button class="primary-btn" id="btnValidateStart" style="margin-top:16px;">Validate & Start</button>
+        <div id="onboardError" style="color:var(--status-red); margin-top:8px; display:none; font-weight:600;"></div>
+      </div>
+    </div>
+    
+
   <div class="app-container">
 
     <!-- Header matching Redesign@2x.png -->
@@ -22,9 +50,28 @@
         </div>
       </div>
       <div class="brand-right">
-        <span class="free-badge">Free</span>
+        <span class="free-badge">Free</span><svg class="gear-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="cursor:pointer; margin-left:12px;" id="settingsGearBtn"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
       </div>
     </header>
+
+    <!-- Settings Panel -->
+    <div id="settingsPanel" style="display:none; position:absolute; top:60px; right:20px; width:300px; background:var(--card-bg); border:1px solid var(--border-card); border-radius:12px; padding:16px; box-shadow:0 4px 12px rgba(0,0,0,0.1); z-index:100;">
+      <h3 style="margin-bottom:12px; color:var(--text-main);">Settings</h3>
+      <label class="input-label" for="settingsProvider">AI Provider</label>
+      <select id="settingsProvider" class="text-input" style="margin-bottom:12px; width:100%;">
+        <option value="gemini">Google Gemini</option>
+        <option value="groq">Groq (Llama)</option>
+        <option value="grok">Grok (xAI)</option>
+        <option value="openai">OpenAI</option>
+        <option value="mistral">Mistral AI</option>
+      </select>
+      <label class="input-label" for="settingsApiKey">API Key</label>
+      <input type="password" id="settingsApiKey" class="text-input" style="width:100%;" />
+      <button class="primary-btn-sm" id="btnSaveSettings" style="margin-top:12px;">Save & Validate</button>
+      <div id="settingsError" style="color:var(--status-red); margin-top:8px; display:none; font-size:12px;"></div>
+      <button class="ghost-btn-sm" id="btnCloseSettings" style="margin-top:8px; width:100%; justify-content:center;">Close</button>
+    </div>
+    
 
     <!-- Top Mode Navigation Bar -->
     <nav class="mode-navigation-bar">
@@ -111,6 +158,18 @@
             </label>
           </div>
 
+          
+          <div class="auto-advance-row" style="margin-top:12px;">
+            <div class="auto-advance-info">
+              <h2 class="auto-advance-title">AI-Clean transcripts</h2>
+              <p class="auto-advance-desc">Removes filler words & fixes punctuation using AI.</p>
+            </div>
+            <label class="switch-toggle" title="Toggle AI Cleaning">
+              <input type="checkbox" id="aiCleanToggle" />
+              <span class="switch-track"><span class="switch-thumb"></span></span>
+            </label>
+          </div>
+    
           <div class="card-separator"></div>
 
           <!-- Content to mine: Symmetrical 3-chip filter on 1 clean row with vector icons -->
@@ -295,71 +354,31 @@
               </div>
             </button>
 
-            <button class="action-card-btn" id="btnBulkCompleteCourse">
-              <div class="action-card-icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                  <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                </svg>
-              </div>
+            
+          <div class="automator-actions-grid">
+            <button class="action-card-btn" id="btnAutoCompleteEntire">
+              <div class="action-card-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></div>
               <div class="action-card-text">
-                <span class="action-card-title">Instant Bulk Complete</span>
-                <span class="action-card-desc">Sends batch API calls to mark all videos & readings complete instantly — no navigation needed.</span>
+                <span class="action-card-title">Complete Entire Course</span>
+                <span class="action-card-desc">Marks all videos, readings & discussions complete.</span>
               </div>
             </button>
-
-            <button class="action-card-btn" id="btnHandleDiscussion">
-              <div class="action-card-icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                </svg>
-              </div>
+            <button class="action-card-btn" id="btnAutoCompleteLesson">
+              <div class="action-card-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg></div>
               <div class="action-card-text">
-                <span class="action-card-title">Handle Discussion Prompt</span>
-                <span class="action-card-desc">Current page only — fills and posts a constructive academic response to this discussion prompt.</span>
+                <span class="action-card-title">Complete This Lesson</span>
+                <span class="action-card-desc">Marks the current page as done.</span>
               </div>
             </button>
-
-            <button class="action-card-btn" id="btnBulkCompleteDiscussions">
-              <div class="action-card-icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
-                </svg>
-              </div>
+            <button class="action-card-btn" id="btnAutoPeerReview">
+              <div class="action-card-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div>
               <div class="action-card-text">
-                <span class="action-card-title">Bulk Complete All Discussions</span>
-                <span class="action-card-desc">Entire course — batch posts academic responses to all unanswered discussion forums.</span>
-              </div>
-            </button>
-
-            <button class="action-card-btn" id="btnAssistPeerReview">
-              <div class="action-card-icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 20h9"></path>
-                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                </svg>
-              </div>
-              <div class="action-card-text">
-                <span class="action-card-title">Auto-Fill Rubric Scores</span>
-                <span class="action-card-desc">Selects the highest rubric options and fills standard constructive comments on this peer review page.</span>
-              </div>
-            </button>
-
-            <button class="action-card-btn" id="btnAutoLoopCourse">
-              <div class="action-card-icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  <polygon points="13 19 22 12 13 5 13 19"></polygon>
-                  <polygon points="2 19 11 12 2 5 2 19"></polygon>
-                </svg>
-              </div>
-              <div class="action-card-text">
-                <span class="action-card-title">Step-by-Step Auto Queue</span>
-                <span class="action-card-desc">Navigates lesson-by-lesson, completing each item with real API calls and progress updates.</span>
+                <span class="action-card-title">Handle This Peer Review</span>
+                <span class="action-card-desc">AI writes tailored feedback & fills scores.</span>
               </div>
             </button>
           </div>
-
-          <div class="automator-status-note" id="automatorStatusNote">
+    <div class="automator-status-note" id="automatorStatusNote">
             Open any Coursera lesson and click an action above to proceed.
           </div>
 
@@ -392,16 +411,7 @@
           </div>
 
           <!-- API Key Setting -->
-          <div class="api-key-box">
-            <label class="input-label" for="geminiApiKey">Google Gemini API Key</label>
-            <div class="input-row">
-              <input type="password" id="geminiApiKey" class="text-input" placeholder="AIzaSy..." />
-              <button class="ghost-btn-sm" id="btnSaveKey">Save</button>
-            </div>
-            <p class="api-hint">Get a 100% free API key from <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a> (No credit card required).</p>
-          </div>
-
-          <div class="card-separator"></div>
+          
 
           <!-- AI Feature Actions -->
           <div class="automator-actions-grid">
@@ -445,7 +455,17 @@
                 <span class="action-card-desc">Uses Gemini AI to generate rubric-aligned, personalized peer feedback paragraphs.</span>
               </div>
             </button>
-          </div>
+          
+            <button class="action-card-btn" id="btnAiWriteAssignment">
+              <div class="action-card-icon ai-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+              </div>
+              <div class="action-card-text">
+                <span class="action-card-title">Write This Assignment</span>
+                <span class="action-card-desc">Reads prompt and AI-generates full submission text.</span>
+              </div>
+            </button>
+    </div>
 
           <div class="ai-output-container" id="aiOutputContainer" style="display:none;">
             <div class="ai-output-header">
@@ -468,7 +488,8 @@
       <footer class="app-status-bar">
         <span class="status-dot dot-ready" id="statusIndicator"></span>
         <span class="status-message" id="statusText">Ready. Lesson page detected.</span>
-      </footer>
+        <span id="providerBadge" style="margin-left:auto; font-size:11px; font-weight:600; color:var(--text-muted); border:1px solid var(--border-subtle); padding:2px 6px; border-radius:4px;">● None</span>
+</footer>
 
     </main>
 

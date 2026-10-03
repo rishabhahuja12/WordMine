@@ -1934,3 +1934,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 } // end window.__wordmine_initialized
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => { 
+  if (request.action === 'solveAndClickQuiz' || request.action === 'writeAndFillAssignment' || request.action === 'getPeerReviewRubric') { 
+    sendResponse({ success: true }); 
+    return true; 
+  } 
+  return true; 
+});

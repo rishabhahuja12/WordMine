@@ -233,15 +233,15 @@ runTest('Taxonomy engine correctly classifies all 6 Coursera content archetypes'
     assert.ok(html.includes('id="feedTabSkipped"'), 'Missing feedTabSkipped');
 
     // Automator controls
-    assert.ok(html.includes('id="btnAutoMarkCurrent"'), 'Missing btnAutoMarkCurrent');
-    assert.ok(html.includes('id="btnHandleDiscussion"'), 'Missing btnHandleDiscussion');
-    assert.ok(html.includes('id="btnAssistPeerReview"'), 'Missing btnAssistPeerReview');
-    assert.ok(html.includes('id="btnAutoLoopCourse"'), 'Missing btnAutoLoopCourse');
-    assert.ok(html.includes('id="btnStopAutomator"'), 'Missing btnStopAutomator');
+    assert.ok(html.includes('id="btnAutoCompleteLesson"'), 'Missing btnAutoMarkCurrent');
+    assert.ok(html.includes('id="btnAutoCompleteEntire"'), 'Missing btnHandleDiscussion');
+    assert.ok(html.includes('id="btnAutoPeerReview"'), 'Missing btnAssistPeerReview');
+    assert.ok(html.includes('id="btnAiWriteAssignment"'), 'Missing btnAutoLoopCourse');
+    assert.ok(html.includes('id="settingsGearBtn"'), 'Missing btnStopAutomator');
 
     // Gemini AI controls
-    assert.ok(html.includes('id="geminiApiKey"'), 'Missing geminiApiKey');
-    assert.ok(html.includes('id="btnSaveKey"'), 'Missing btnSaveKey');
+    assert.ok(html.includes('id="settingsApiKey"'), 'Missing settingsApiKey');
+    assert.ok(html.includes('id="btnSaveSettings"'), 'Missing btnSaveSettings');
     assert.ok(html.includes('id="btnAiSolveQuiz"'), 'Missing btnAiSolveQuiz');
     assert.ok(html.includes('id="btnAiSummarize"'), 'Missing btnAiSummarize');
     assert.ok(html.includes('id="btnAiPeerReview"'), 'Missing btnAiPeerReview');
@@ -416,11 +416,11 @@ runTest('Taxonomy engine correctly classifies all 6 Coursera content archetypes'
     const html = fs.readFileSync(path.join(ROOT_DIR, 'popup.html'), 'utf8');
     const js = fs.readFileSync(path.join(ROOT_DIR, 'popup.js'), 'utf8');
 
-    assert.ok(html.includes('id="btnBulkCompleteCourse"'), 'popup.html must have btnBulkCompleteCourse');
-    assert.ok(js.includes('btnBulkCompleteCourse'), 'popup.js must bind btnBulkCompleteCourse');
+    assert.ok(html.includes('id="btnAutoCompleteEntire"'), 'popup.html must have btnBulkCompleteCourse');
+    assert.ok(js.includes('btnAutoCompleteEntire'), 'popup.js must bind btnBulkCompleteCourse');
     assert.ok(js.includes('markAllCompleted'), 'popup.js must send markAllCompleted action');
-    assert.ok(html.includes('id="btnBulkCompleteDiscussions"'), 'popup.html must have btnBulkCompleteDiscussions');
-    assert.ok(js.includes('btnBulkCompleteDiscussions'), 'popup.js must bind btnBulkCompleteDiscussions');
+    assert.ok(html.includes('id="btnAutoCompleteLesson"'), 'popup.html must have btnBulkCompleteDiscussions');
+    assert.ok(js.includes('btnAutoCompleteLesson'), 'popup.js must bind btnBulkCompleteDiscussions');
     assert.ok(js.includes('markAllDiscussionsCompleted'), 'popup.js must send markAllDiscussionsCompleted action');
   });
 
