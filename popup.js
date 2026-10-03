@@ -609,16 +609,7 @@ async function extractCurrentVideo(index, silentMode = false) {
         if (includeQuizzes && includeQuizzes.checked && response.quizContent) {
           const format = getSelectedFormat();
           const fileIndex = collectedFiles.length + 1;
-          const aiCleanToggle = document.getElementById("aiCleanToggle");
-    let finalContent = response.transcript;
-    if (aiCleanToggle && aiCleanToggle.checked && response.transcript) {
-      const cleanedTranscript = await callAI(
-        "Clean this transcript by removing filler words (um, uh, you know), fixing punctuation, and making it readable. Return only the cleaned text:\n\n" + response.transcript.substring(0, 12000)
-      );
-      finalContent = cleanedTranscript || response.transcript;
-      replaceLog(searchingEntry, `[AI-cleaned] ${sanitizeFilename(response.title)}`, "success");
-    }
-    collectedFiles.push({
+          collectedFiles.push({
             title: response.title,
             content: response.quizContent,
             format,
@@ -671,6 +662,22 @@ async function extractCurrentVideo(index, silentMode = false) {
 
     const format = getSelectedFormat();
     const fileIndex = collectedFiles.length + 1;
+    let finalContent = response.transcript;
+
+    const aiCleanToggle = document.getElementById("aiCleanToggle");
+    if (aiCleanToggle && aiCleanToggle.checked && finalContent) {
+      try {
+        replaceLog(searchingEntry, "AI is cleaning transcript (removing filler words)...", "success");
+        const cleanedTranscript = await callAI(
+          "Clean this transcript by removing filler words (um, uh, you know), fixing punctuation, and making it readable. Return only the cleaned text:\n\n" + finalContent.substring(0, 12000)
+        );
+        if (cleanedTranscript) {
+          finalContent = cleanedTranscript;
+        }
+      } catch (e) {
+        console.warn("AI cleaning failed, using original transcript.", e);
+      }
+    }
 
     collectedFiles.push({
       title: response.title,
