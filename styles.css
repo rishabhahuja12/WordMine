@@ -358,9 +358,13 @@ body {
 }
 
 .filter-chips-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+
+.chip-text {
+  white-space: nowrap;
 }
 
 .filter-chip {

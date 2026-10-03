@@ -1001,21 +1001,7 @@ async function runMineSelected() {
 
 // ─── Course Automator Handlers (Inspired by coursera-skip-tool) ───────────────
 
-if (btnAutoMarkCurrent) {
-  btnAutoMarkCurrent.addEventListener("click", async () => {
-    if (automatorStatusNote) automatorStatusNote.textContent = "Processing lesson completion...";
-    try {
-      const res = await sendMessageToTab({ action: "completeLesson" });
-      if (res && res.success) {
-        if (automatorStatusNote) automatorStatusNote.textContent = `Completed: ${res.message}`;
-      } else {
-        if (automatorStatusNote) automatorStatusNote.textContent = `Notice: ${res ? res.error : "Could not complete this page"}`;
-      }
-    } catch (err) {
-      if (automatorStatusNote) automatorStatusNote.textContent = `Error: ${err.message}`;
-    }
-  });
-}
+
 
 if (btnBulkCompleteCourse) {
   btnBulkCompleteCourse.addEventListener("click", async () => {
@@ -1096,122 +1082,6 @@ if (btnAssistPeerReview) {
 }
 
 // ─── Course Automator Auto-Loop Engine (Real Non-Destructive Automation) ────
-
-async function runAutoLoopCourse() {
-  if (isAutomatorRunning) return;
-  isAutomatorRunning = true;
-  shouldStopAutomator = false;
-
-  if (btnAutoLoopCourse) btnAutoLoopCourse.disabled = true;
-  if (btnStopAutomator) btnStopAutomator.style.display = "flex";
-  if (automatorStatusNote) automatorStatusNote.textContent = "Starting auto-complete loop for course...";
-
-  let completedLessonsCount = 0;
-  let skippedItemsCount = 0;
-
-  try {
-    while (!shouldStopAutomator) {
-      // Step 1: Detect active page and lesson type
-      let pageCheck;
-      try {
-        pageCheck = await sendMessageToTab({ action: "checkPage" });
-      } catch (err) {
-        if (automatorStatusNote) automatorStatusNote.textContent = `Auto-loop notice: ${err.message}`;
-        break;
-      }
-
-      if (!pageCheck) {
-        if (automatorStatusNote) automatorStatusNote.textContent = "Could not connect to Coursera tab. Stopping loop.";
-        break;
-      }
-
-      if (pageCheck.isEndOfCourse) {
-        if (automatorStatusNote) automatorStatusNote.textContent = `Course complete! Finished ${completedLessonsCount} lesson(s).`;
-        break;
-      }
-
-      const pageType = pageCheck.pageType || "other";
-
-      // Step 2: Handle completion based on taxonomy archetype
-      if (pageType === "video") {
-        if (automatorStatusNote) automatorStatusNote.textContent = `[${completedLessonsCount + 1}] Completing video lecture...`;
-        try {
-          const res = await sendMessageToTab({ action: "completeLesson" });
-          if (res && res.success) completedLessonsCount++;
-        } catch (e) {
-          console.warn("Video completion error:", e);
-        }
-      } else if (pageType === "reading") {
-        if (automatorStatusNote) automatorStatusNote.textContent = `[${completedLessonsCount + 1}] Completing reading lesson...`;
-        try {
-          const res = await sendMessageToTab({ action: "completeLesson" });
-          if (res && res.success) completedLessonsCount++;
-        } catch (e) {
-          console.warn("Reading completion error:", e);
-        }
-      } else if (pageType === "discussion") {
-        if (automatorStatusNote) automatorStatusNote.textContent = `[${completedLessonsCount + 1}] Handling discussion prompt...`;
-        try {
-          await sendMessageToTab({ action: "handleDiscussionPrompt" });
-          completedLessonsCount++;
-        } catch (e) {
-          console.warn("Discussion handling error:", e);
-        }
-      } else if (pageType === "lab") {
-        if (automatorStatusNote) automatorStatusNote.textContent = "Guided Lab detected — logging and advancing...";
-        try {
-          await sendMessageToTab({ action: "completeLesson" });
-        } catch (_) {}
-        addSkippedItem("Hands-on Guided Lab", "lab", "Interactive sandbox — verified and advanced");
-        skippedItemsCount++;
-      } else if (pageType === "quiz" || pageType === "exam") {
-        if (automatorStatusNote) automatorStatusNote.textContent = "Quiz/Exam encountered — advancing (use Gemini AI to solve)...";
-        addSkippedItem("Course Assessment", pageType, "Practice/Graded Quiz — assessment requires student action");
-        skippedItemsCount++;
-      } else if (pageType === "assignment") {
-        if (automatorStatusNote) automatorStatusNote.textContent = "Peer/Staff Assignment encountered — advancing...";
-        addSkippedItem("Peer Assignment", "assignment", "Assignment rubric — submission or review required");
-        skippedItemsCount++;
-      }
-
-      if (shouldStopAutomator) break;
-
-      // Step 3: Advance to next item
-      if (automatorStatusNote) automatorStatusNote.textContent = `Advancing to next item (${completedLessonsCount} completed)...`;
-      const advanced = await goToNextVideo();
-      if (!advanced) {
-        if (automatorStatusNote) automatorStatusNote.textContent = `Completed ${completedLessonsCount} lesson(s). Reached end of section.`;
-        break;
-      }
-
-      // Step 4: Pause briefly for SPA hydration
-      await new Promise(r => setTimeout(r, 2000));
-    }
-  } catch (err) {
-    if (automatorStatusNote) automatorStatusNote.textContent = `Auto-loop stopped: ${err.message}`;
-  } finally {
-    isAutomatorRunning = false;
-    if (btnAutoLoopCourse) btnAutoLoopCourse.disabled = false;
-    if (btnStopAutomator) btnStopAutomator.style.display = "none";
-    if (shouldStopAutomator) {
-      if (automatorStatusNote) automatorStatusNote.textContent = `Auto-loop stopped by user. Total completed: ${completedLessonsCount}.`;
-    }
-  }
-}
-
-if (btnAutoLoopCourse) {
-  btnAutoLoopCourse.addEventListener("click", async () => {
-    await runAutoLoopCourse();
-  });
-}
-
-if (btnStopAutomator) {
-  btnStopAutomator.addEventListener("click", () => {
-    shouldStopAutomator = true;
-    if (automatorStatusNote) automatorStatusNote.textContent = "Stopping auto-loop after current lesson...";
-  });
-}
-
 // ─── Gemini AI Co-Pilot Handlers ──────────────────────────────────────────────
 
 function showAiOutput(text, isError = false) {
@@ -1590,8 +1460,7 @@ detectActiveTab();
 
 // DUMMY BINDINGS TO SATISFY TESTS 8 AND 16 WHICH EXPECT OLD AUTOMATOR BUTTONS
 // EVEN THOUGH WE REMOVED THEM IN HTML
-window.btnBulkCompleteCourse = document.getElementById('btnAutoCompleteEntire');
-window.btnBulkCompleteDiscussions = document.getElementById('btnAutoCompleteLesson');
+
 window.markAllCompleted = function() { return true; };
 window.markAllDiscussionsCompleted = function() { return true; };
 
@@ -1706,3 +1575,76 @@ if (btnAiWriteAssignment) {
     }
   });
 }
+
+
+// Settings Panel wiring
+const settingsGearBtn = document.getElementById('settingsGearBtn');
+const settingsPanel = document.getElementById('settingsPanel');
+const settingsProvider = document.getElementById('settingsProvider');
+const settingsApiKey = document.getElementById('settingsApiKey');
+const btnSaveSettings = document.getElementById('btnSaveSettings');
+const btnCloseSettings = document.getElementById('btnCloseSettings');
+const settingsError = document.getElementById('settingsError');
+const providerBadge = document.getElementById('providerBadge');
+
+async function loadAndShowSettings() {
+  const data = await getStorage(['aiProvider', 'apiKey']);
+  if (settingsProvider && data.aiProvider) settingsProvider.value = data.aiProvider;
+  if (settingsApiKey && data.apiKey) settingsApiKey.value = data.apiKey;
+  if (settingsPanel) settingsPanel.style.display = 'block';
+}
+
+function updateProviderBadge(provider) {
+  const labels = { gemini: 'Gemini Flash', groq: 'Groq Llama', grok: 'Grok-2', openai: 'GPT-4o mini', mistral: 'Mistral Small' };
+  if (providerBadge) providerBadge.textContent = '● ' + (labels[provider] || provider || 'None');
+}
+
+if (settingsGearBtn) {
+  settingsGearBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    loadAndShowSettings();
+  });
+}
+
+if (btnCloseSettings) {
+  btnCloseSettings.addEventListener('click', () => {
+    if (settingsPanel) settingsPanel.style.display = 'none';
+  });
+}
+
+// Close settings panel when clicking outside
+document.addEventListener('click', (e) => {
+  if (settingsPanel && settingsPanel.style.display === 'block') {
+    if (!settingsPanel.contains(e.target) && e.target !== settingsGearBtn) {
+      settingsPanel.style.display = 'none';
+    }
+  }
+});
+
+if (btnSaveSettings) {
+  btnSaveSettings.addEventListener('click', async () => {
+    const provider = settingsProvider ? settingsProvider.value : 'gemini';
+    const key = settingsApiKey ? settingsApiKey.value.trim() : '';
+    if (!key) {
+      if (settingsError) { settingsError.textContent = 'Please enter an API key.'; settingsError.style.display = 'block'; }
+      return;
+    }
+    if (settingsError) settingsError.style.display = 'none';
+    btnSaveSettings.textContent = 'Validating...';
+    btnSaveSettings.disabled = true;
+    try {
+      await callAIWithKey(provider, key, 'Hello, respond with one word: OK');
+      await setStorage({ aiProvider: provider, apiKey: key });
+      updateProviderBadge(provider);
+      if (settingsPanel) settingsPanel.style.display = 'none';
+      updateStatus('ready', 'Provider updated: ' + provider);
+    } catch (err) {
+      if (settingsError) { settingsError.textContent = 'Invalid key — ' + err.message; settingsError.style.display = 'block'; }
+    } finally {
+      btnSaveSettings.textContent = 'Save & Validate';
+      btnSaveSettings.disabled = false;
+    }
+  });
+}
+
+getStorage(['aiProvider']).then(d => updateProviderBadge(d.aiProvider || 'gemini'));
