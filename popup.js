@@ -1152,7 +1152,7 @@ async function callAIWithKey(provider, apiKey, prompt, customModel = null) {
   } else if (provider === "gemini") {
     models = ["gemini-1.5-flash", "gemini-3.8-flash"];
   } else if (provider === "groq") {
-    models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
+    models = ["llama-3.3-70b-versatile", "llama3-8b-8192"];
     baseUrl = "https://api.groq.com/openai/v1/chat/completions";
     headers = { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };
   } else if (provider === "grok") {
@@ -1505,8 +1505,15 @@ if (btnValidateStart) {
       await chrome.storage.local.set({ aiProvider: provider, apiKey: key, onboardingDone: true });
       if (typeof hideOnboarding === "function") hideOnboarding();
     } catch (err) {
-      if (typeof showOnboardingError === "function") showOnboardingError(`Invalid key — ${err.message}`);
-      else alert(`Invalid key — ${err.message}`);
+      const msg = err.message.toLowerCase();
+      if (msg.includes('high demand') || msg.includes('rate limit') || msg.includes('quota') || msg.includes('429') || msg.includes('503')) {
+        await chrome.storage.local.set({ aiProvider: provider, apiKey: key, onboardingDone: true });
+        if (typeof hideOnboarding === "function") hideOnboarding();
+        if (typeof updateStatus === "function") updateStatus('warning', 'API is busy, but setup complete.');
+      } else {
+        if (typeof showOnboardingError === "function") showOnboardingError(`Validation failed — ${err.message}`);
+        else alert(`Validation failed — ${err.message}`);
+      }
     } finally {
       btnValidateStart.textContent = "Validate & Start";
       btnValidateStart.disabled = false;
@@ -1659,7 +1666,15 @@ if (btnSaveSettings) {
       if (settingsPanel) settingsPanel.style.display = 'none';
       updateStatus('ready', 'Provider updated: ' + provider);
     } catch (err) {
-      if (settingsError) { settingsError.textContent = 'Invalid key — ' + err.message; settingsError.style.display = 'block'; }
+      const msg = err.message.toLowerCase();
+      if (msg.includes('high demand') || msg.includes('rate limit') || msg.includes('quota') || msg.includes('429') || msg.includes('503')) {
+        await setStorage({ aiProvider: provider, apiKey: key, customModel: customModel });
+        updateProviderBadge(provider);
+        if (settingsPanel) settingsPanel.style.display = 'none';
+        updateStatus('warning', 'Key saved, but API is currently busy.');
+      } else {
+        if (settingsError) { settingsError.textContent = 'Validation failed — ' + err.message; settingsError.style.display = 'block'; }
+      }
     } finally {
       btnSaveSettings.textContent = 'Save & Validate';
       btnSaveSettings.disabled = false;
