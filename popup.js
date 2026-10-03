@@ -84,6 +84,9 @@ const aiModeSelect = document.getElementById("aiModeSelect");
 const courseraAiActions = document.getElementById("courseraAiActions");
 const universalAiActions = document.getElementById("universalAiActions");
 const btnAiSmartAuto = document.getElementById("btnAiSmartAuto");
+const universalCustomPrompt = document.getElementById("universalCustomPrompt");
+const universalBtnTitle = document.getElementById("universalBtnTitle");
+const universalBtnDesc = document.getElementById("universalBtnDesc");
 
 // Status Bar
 const statusIndicator = document.getElementById("statusIndicator");
@@ -1333,6 +1336,18 @@ async function captureScreen() {
   });
 }
 
+if (universalCustomPrompt && universalBtnTitle && universalBtnDesc) {
+  universalCustomPrompt.addEventListener("input", () => {
+    if (universalCustomPrompt.value.trim().length > 0) {
+      universalBtnTitle.textContent = "Run Custom Prompt";
+      universalBtnDesc.textContent = "Sends your specific instruction along with the screen & text context.";
+    } else {
+      universalBtnTitle.textContent = "Smart Auto-Pilot (Vision + Text)";
+      universalBtnDesc.textContent = "AI automatically reads the screen & code to decide whether to solve a quiz, summarize an article, or explain a diagram.";
+    }
+  });
+}
+
 if (btnAiSmartAuto) {
   btnAiSmartAuto.addEventListener("click", async () => {
     showAiOutput("Gathering page text and visual context...");
@@ -1345,10 +1360,25 @@ if (btnAiSmartAuto) {
       }
       
       const imgData = await captureScreen();
-      showAiOutput("Context gathered! Analyzing page structure and intent automatically...");
       
-      const prompt = `You are a universal intelligent assistant. I am providing you with the text of the webpage I am on, as well as a screenshot of what I am looking at right now. 
+      const customPromptVal = universalCustomPrompt ? universalCustomPrompt.value.trim() : "";
+      let finalPrompt = "";
       
+      if (customPromptVal) {
+        showAiOutput("Context gathered! Running your custom prompt...");
+        finalPrompt = `You are a universal intelligent assistant. The user has provided a specific question or instruction regarding their current webpage.
+        
+USER'S INSTRUCTION:
+${customPromptVal}
+
+Analyze the provided webpage text context and the screenshot (if applicable) to fulfill the instruction precisely.
+
+Webpage Text Context:
+${text ? text : "(No text available)"}`;
+      } else {
+        showAiOutput("Context gathered! Analyzing page structure and intent automatically...");
+        finalPrompt = `You are a universal intelligent assistant. I am providing you with the text of the webpage I am on, as well as a screenshot of what I am looking at right now. 
+        
 Please automatically determine what I need based on context:
 1) If the screen clearly shows a quiz, exam, or multiple-choice questions, solve them step-by-step and provide the correct answers.
 2) If the screen shows a visual chart, graph, diagram, or piece of code, explain it in detail.
@@ -1358,8 +1388,9 @@ Analyze both the text and the screenshot (if applicable) and give your answer di
 
 Webpage Text Context:
 ${text ? text : "(No text available)"}`;
+      }
 
-      const res = await callAI(prompt, imgData);
+      const res = await callAI(finalPrompt, imgData);
       showAiOutput(res);
     } catch (err) {
       if (err.message.includes("does not support")) {
